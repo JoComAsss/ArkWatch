@@ -2,23 +2,18 @@
 
 macOS 菜单栏上的火山方舟（Volcengine Ark）用量监控，原生 Swift/AppKit + SwiftUI，无第三方依赖。
 
-手机号 + 验证码登录，登录态保存在钥匙串，重启后自动恢复，直到你主动点击「退出登录」。
-
-![登录](docs/preview-login.png)
-![用量面板](docs/preview.png)
+![预览](docs/preview.png)
 
 ## 功能
 
-- **手机号 + 验证码登录**：11 位手机号校验、60 秒重发倒计时、验证码 5 分钟有效；登录后写入本机会话。
-- **登录态持久化**：会话存于系统钥匙串，重启 App 或重启电脑后自动恢复，**只有点击「退出登录」才会失效**。
-- **菜单栏常驻**：显示本月 AFP 剩余百分比（可切换为已用百分比 / 剩余 AFP 数值），无 Dock 图标。
+- **菜单栏常驻**：显示本月 AFP 剩余百分比（可切换为已用百分比 / 剩余 AFP 数值），占用极小，无 Dock 图标。
 - **四个额度窗口**：5 小时、今日、本周、本月，各自显示 已用 / 配额、进度条、重置倒计时。
 - **模型用量**：今日各模型消耗的 Token 排名，套餐外用量带“超额”标记。
 - **套餐识别**：自动识别 Agent Plan（Small / Medium / Large / Max）与 Coding Plan（Lite / Pro），并显示状态、到期时间、是否自动续费。
-- **多手机号账号**：每个手机号绑定各自的 AK/SK，退出后可换号登录；Secret Key 只进钥匙串。
-- **实时刷新**：默认 60 秒，可设 30 秒 / 2 分钟 / 5 分钟；点开面板立即刷新。
-- **开机自启**：LaunchAgent 实现，无需开发者证书。
-- **命令行工具**：`--selftest` 验签、`--keychain-test` 验钥匙串、`--probe` 直接打印用量。
+- **多账号**：支持添加、编辑、删除多个账号（AK/SK），菜单里一键切换；Secret Key 保存在系统钥匙串，不落明文。
+- **实时刷新**：默认 60 秒，可设 30 秒 / 2 分钟 / 5 分钟；点击图标立即刷新一次。
+- **开机自启**：通过 LaunchAgent 实现，无需开发者证书。
+- **命令行工具**：`--selftest` 校验签名实现，`--probe` 直接打印用量（便于排障）。
 
 ## 快速开始
 
@@ -28,50 +23,22 @@ cd ArkWatch
 open dist/ArkWatch.app
 ```
 
-首次运行菜单栏显示 `Ark 登录`：
+首次运行菜单栏会显示 `Ark ⚙`：
 
-1. 点击菜单栏图标，输入手机号 → 点「获取验证码」
-2. 把界面上显示的 6 位**演示验证码**填入验证码框（60 秒内有效，5 分钟过期）
-3. 点「登录」→ 菜单栏变为 `Ark ⚙`
-4. 点齿轮「设置」→ 该手机号一行点「绑定 AK」→ 填入 AK/SK →「测试连接」→「保存」
-5. 菜单栏开始显示本月剩余百分比
+1. 点击菜单栏图标 → 右上角「登录」→「添加账号…」
+2. 填入火山引擎 **Access Key ID / Secret Access Key**（控制台 → 访问控制 → API 访问密钥）
+3. 点「测试连接」确认，再「保存」
 
-之后无论重启 App 还是重启电脑，都会直接进入已登录状态。
+添加完成后菜单栏即显示本月剩余百分比，点开可看四个窗口和模型用量。
 
-## 登录与会话机制
+## 账号与切换
 
-| 环节 | 实现 |
-|---|---|
-| 身份标识 | 手机号（11 位、`1[3-9]` 开头校验） |
-| 验证码 | **本地演示模式**：App 生成 6 位随机码并显示在登录面板，5 分钟过期，60 秒重发间隔 |
-| 会话 | 登录成功写入 `Session{phone, token, loginAt}`，存于钥匙串（service `com.joco.arkwatch.session`） |
-| 恢复 | 启动时读取会话，自动登录并刷新数据，无需再次验证 |
-| 退出 | 菜单 →「退出登录」或设置页 →「退出登录」，清除会话；手机号账号与 AK/SK **保留**，下次登录可继续用 |
+- 所有账号保存在 `~/Library/Application Support/ArkWatch/accounts.json`（AK 与备注，权限 0600）。
+- Secret Key 存入 macOS 钥匙串（service `com.joco.arkwatch`），随账号删除而清理。
+- 菜单里的账号列表带勾选标记，点击即切换，切换后立即重新拉取数据。
+- 设置窗口可编辑账号名称、替换 SK、删除账号。
 
-> **重要**：这是**本地登录门禁**，不是真实身份认证。验证码不发短信、不联网校验，只用于把本机 UI 锁在“已登录”状态。火山方舟 OpenAPI 本身只认 AK/SK，没有“手机号换 AK/SK”的公开接口，因此真实身份必须由 AK/SK 承担。
-
-### 想换成真实短信验证码
-
-`Sources/UI.swift` 中的 `LoginModel.sendCode()` / `LoginModel.submit()` 是唯一入口，替换成你的后端即可：
-
-```swift
-func sendCode() {
-    // POST https://your-api/sms/send  { phone: normalizedPhone }
-    // 成功后 secondsLeft = 60
-}
-
-func submit(to model: AppModel) {
-    // POST https://your-api/sms/verify { phone, code }
-    // 后端返回成功后再：model.login(phone: normalizedPhone)
-}
-```
-
-## 账号与 AK/SK
-
-- 手机号与绑定信息存 `~/Library/Application Support/ArkWatch/accounts.json`（权限 0600，不含 Secret Key）。
-- Secret Key 存入 macOS 钥匙串（service `com.joco.arkwatch`，按账号 id 区分），删除账号时一并清理。
-- 一个手机号可绑定一套 AK/SK；换号登录不影响已绑定的其他手机号。
-- AK/SK 在火山引擎控制台「访问控制 → API 访问密钥」创建。
+> 这里的“登录”指的是用 AK/SK 授权调用方舟 OpenAPI。火山引擎控制台的网页登录态无法被第三方程序复用，AK/SK 是官方唯一支持的自动化鉴权方式。
 
 ## 数据来源
 
@@ -88,18 +55,11 @@ func submit(to model: AppModel) {
 ## 命令行
 
 ```bash
-# 签名自检（官方文档测试向量）
+# 签名自检（使用官方文档测试向量，输出 PASS/FAIL）
 ./dist/ArkWatch.app/Contents/MacOS/ArkWatch --selftest
-
-# 钥匙串读写自检（登录态依赖它）
-./dist/ArkWatch.app/Contents/MacOS/ArkWatch --keychain-test
 
 # 直接查询用量，排查问题最快
 ARK_AK=AKLT... ARK_SK=... ./dist/ArkWatch.app/Contents/MacOS/ArkWatch --probe
-
-# 开发调试：写入 / 清除本机会话与账号
-./dist/ArkWatch.app/Contents/MacOS/ArkWatch --session-test
-./dist/ArkWatch.app/Contents/MacOS/ArkWatch --reset-state
 ```
 
 `--probe` 输出示例：
@@ -115,17 +75,12 @@ ARK_AK=AKLT... ARK_SK=... ./dist/ArkWatch.app/Contents/MacOS/ArkWatch --probe
 
 ## 常见问题
 
-**登录后菜单栏还是 `Ark ⚙`**
-说明该手机号还没绑定 AK/SK。点齿轮进设置，在对应手机号一行点「绑定 AK」。
-
-**重启后要我重新登录**
-正常应自动恢复；若没有，可能是钥匙串条目被清理或 App 被重新签名（重编译后首次读取可能弹一次钥匙串授权，点“始终允许”即可）。
-
-**怎么彻底清掉登录态**
-点「退出登录」清会话；再在设置里删除账号即同时清除 Keychain 中的 Secret Key。也可手动删除 `~/Library/Application Support/ArkWatch/accounts.json` 并在「钥匙串访问」里删除 `com.joco.arkwatch.*` 条目。
-
 **菜单栏显示 `Ark ⚠` 或红色报错**
-点开面板看具体错误。常见为 `InvalidAccessKey`（AK 写错）或 `SignatureDoesNotMatch`（SK 错误 / 系统时间偏差过大）。
+点击图标看具体错误。常见为 `InvalidAccessKey`（AK 写错）或 `SignatureDoesNotMatch`（SK 错误 / 系统时间偏差过大）。
+
+**账号有 AK/SK 但读不到套餐**
+- 该接口只支持**个人版** Agent Plan / Coding Plan；企业版席位请用 `GetSeatAFPUsage` 等接口。
+- 账号未购买套餐时 `GetPersonalPlan` 返回 `ResourceNotFound.Plan`，属正常。
 
 **Coding Plan 看不到 AFP 进度条**
 `GetAFPUsage` 目前只覆盖 Agent Plan，Coding Plan 会显示套餐信息与模型用量，额度窗口为空。
@@ -144,17 +99,16 @@ ArkWatch/
 │   ├── main.swift        # 入口、菜单栏、弹窗、CLI 模式
 │   ├── Signing.swift     # AK/SK 签名 + 官方向量自检
 │   ├── ArkAPI.swift      # OpenAPI 客户端与数据模型
-│   ├── Store.swift       # 账号仓库、会话、钥匙串、偏好、开机自启
-│   ├── AppModel.swift    # 登录态、轮询、状态聚合、菜单栏文案
-│   └── UI.swift          # 登录面板、用量面板、设置界面
+│   ├── Store.swift       # 账号仓库、钥匙串、偏好、开机自启
+│   ├── AppModel.swift    # 轮询、状态聚合、菜单栏文案
+│   └── UI.swift          # SwiftUI 面板与设置界面
 ├── tools/make-icon.swift # 生成 App 图标
 ├── build.sh              # 一键构建 .app
-└── dist/ArkWatch.app     # 产物（不入库）
+└── dist/ArkWatch.app     # 产物
 ```
 
 ## 安全说明
 
 - 程序只与本机 `ark.cn-beijing.volcengineapi.com` 通信，不经过任何中转服务。
-- 手机号、会话 token、Secret Key 均只存在本机（User 配置 + 钥匙串）。
-- 演示验证码不联网，也不构成真实认证；若用于团队环境，请先接入自己的短信/身份服务。
+- Secret Key 不写入配置文件，只在内存与系统钥匙串中出现。
 - 建议使用**子账号 AK** 并仅授予方舟相关只读权限，降低泄露风险。

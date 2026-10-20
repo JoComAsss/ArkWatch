@@ -14,7 +14,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: AppModel!
     private var settingsWC: PanelWindowController?
     private let settingsVM = SettingsModel()
-    private let loginVM = LoginModel()
     private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -30,8 +29,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let root = PopoverView(model: model,
                                prefs: model.prefs,
-                               loginVM: loginVM,
                                openSettings: { [weak self] in self?.showSettings() },
+                               openAddAccount: { [weak self] in self?.showAddAccount() },
                                quit: { NSApp.terminate(nil) })
         popover.contentViewController = NSHostingController(rootView: root)
         popover.behavior = .transient
@@ -44,6 +43,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.statusItem.button?.toolTip = self?.tooltip()
             }
             .store(in: &cancellables)
+
+        // 数据量变化会改变面板高度，按 SwiftUI 的理想尺寸重设 popover 大小
+        model.objectWillChange
+            .receive(on: RunLoop.main)
+            .debounce(for: .milliseconds(250), scheduler: RunLoop.main)
+            .sink { [weak self] _ in self?.resizePopover() }
+            .store(in: &cancellables)
+        resizePopover()
+    }
+
+    private func resizePopover() {
+        guard let view = popover.contentViewController?.view else { return }
+        view.layoutSubtreeIfNeeded()
+        let size = view.fittingSize
+        guard size.width > 0, size.height > 0 else { return }
+        popover.contentSize = NSSize(width: ceil(size.width), height: ceil(size.height))
     }
 
     private func tooltip() -> String {
@@ -68,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             popover.performClose(sender)
             return
         }
+        resizePopover()
         model.refresh()
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -79,53 +95,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWC == nil {
             settingsWC = PanelWindowController.make(
                 title: "ArkWatch 设置",
-                view: SettingsView(model: model, prefs: model.prefs, vm: settingsVM,
-                                   closeWindow: { [weak self] in self?.settingsWC?.close() }),
+                view: SettingsView(model: model, prefs: model.prefs, vm: settingsVM),
                 size: NSSize(width: 420, height: 560))
         } else {
             settingsWC?.contentViewController = NSHostingController(
-                rootView: SettingsView(model: model, prefs: model.prefs, vm: settingsVM,
-                                       closeWindow: { [weak self] in self?.settingsWC?.close() }))
+                rootView: SettingsView(model: model, prefs: model.prefs, vm: settingsVM))
         }
         settingsWC?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    func showAddAccount() {
+        showSettings()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            NotificationCenter.default.post(name: .arkWatchAddAccount, object: nil)
+        }
+    }
 }
 
 // MARK: - 命令行工具
 
 func runSelfTestAndExit() -> Never {
     exit(SignatureSelfTest.run() ? 0 : 1)
-}
-
-func runSessionTestAndExit() -> Never {
-    let phone = "13800008000"
-    let store = AccountStore()
-    store.ensureAccount(phone: phone)
-    SessionStore.save(Session(phone: phone, token: UUID().uuidString, loginAt: Date()))
-    print("已写入会话：\(phone)")
-    exit(0)
-}
-
-func runResetStateAndExit() -> Never {
-    SessionStore.clear()
-    let store = AccountStore()
-    for account in store.accounts { store.remove(account) }
-    print("已清除会话与全部账号")
-    exit(0)
-}
-
-func runKeychainTestAndExit() -> Never {
-    let key = "session-selftest"
-    let value = UUID().uuidString
-    let wrote = Keychain.set(value, account: key)
-    let readBack = Keychain.get(account: key)
-    Keychain.delete(account: key)
-    let cleared = Keychain.get(account: key) == nil
-    let ok = wrote && readBack == value && cleared
-    print("keychain write: \(wrote ? "PASS" : "FAIL"), read: \(readBack == value ? "PASS" : "FAIL"), delete: \(cleared ? "PASS" : "FAIL")")
-    exit(ok ? 0 : 1)
 }
 
 func runProbeAndExit() -> Never {
@@ -165,9 +156,6 @@ func runProbeAndExit() -> Never {
 
 let arguments = CommandLine.arguments
 if arguments.contains("--selftest") { runSelfTestAndExit() }
-if arguments.contains("--session-test") { runSessionTestAndExit() }
-if arguments.contains("--reset-state") { runResetStateAndExit() }
-if arguments.contains("--keychain-test") { runKeychainTestAndExit() }
 if arguments.contains("--probe") { runProbeAndExit() }
 if arguments.contains("--help") {
     print("""
@@ -189,8 +177,8 @@ func runRenderAndExit(path: String, demo: Bool) -> Never {
     app.setActivationPolicy(.prohibited)
     let model = AppModel()
     if demo { model.loadDemoData() }
-    let view = PopoverView(model: model, prefs: model.prefs, loginVM: LoginModel(),
-                           openSettings: {}, quit: {})
+    let view = PopoverView(model: model, prefs: model.prefs,
+                           openSettings: {}, openAddAccount: {}, quit: {})
     let hosting = NSHostingView(rootView: view)
     hosting.frame = NSRect(x: 0, y: 0, width: 400, height: demo ? 360 : 190)
     hosting.layoutSubtreeIfNeeded()
