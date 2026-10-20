@@ -210,10 +210,10 @@ final class Preferences: ObservableObject {
         }
         let storedMenuPercent = defaults.integer(forKey: "menuBarScalePercent")
         if storedMenuPercent > 0 {
-            menuBarScalePercent = min(150, max(80, storedMenuPercent))
+            menuBarScalePercent = min(130, max(80, storedMenuPercent))
         } else {
             let legacyMenu = defaults.double(forKey: "menuBarScale")
-            menuBarScalePercent = legacyMenu >= 0.5 ? min(150, max(80, Int((legacyMenu * 100).rounded()))) : 100
+            menuBarScalePercent = legacyMenu >= 0.5 ? min(130, max(80, Int((legacyMenu * 100).rounded()))) : 100
         }
         appearanceMode = defaults.string(forKey: "appearanceMode") ?? "system"
         let storedWindow = defaults.string(forKey: "menuBarWindow") ?? "monthly"

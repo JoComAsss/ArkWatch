@@ -89,7 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 菜单栏标题：蓝色小字说明以上标形式放在数值左上角，数值放大
     static func makeStatusTitle(label: String, value: String, scale: Double = 1.0) -> NSAttributedString {
-        let factor = min(1.5, max(0.8, scale))
+        let factor = min(1.3, max(0.8, scale))
         let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 13 * factor, weight: .semibold)
         let result = NSMutableAttributedString()
 

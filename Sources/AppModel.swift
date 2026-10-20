@@ -302,11 +302,11 @@ final class AppModel: ObservableObject {
 
         switch prefs.displayMode {
         case "usedPercent":
-            statusValue = String(format: "%.1f%%", window.ratio * 100)
+            statusValue = String(format: "%.1f%%", window.rawRatio * 100)
         case "remainingAFP":
             statusValue = Self.formatAFP(window.remaining)
         case "remainingPercent":
-            statusValue = String(format: "%.1f%%", (1 - window.ratio) * 100)
+            statusValue = String(format: "%.1f%%", max(0, 1 - window.rawRatio) * 100)
         default:
             statusValue = String(format: "%.1f%%", (1 - window.ratio) * 100)
         }

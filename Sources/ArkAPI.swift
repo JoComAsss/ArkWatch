@@ -10,9 +10,12 @@ struct AFPWindow: Identifiable {
     let resetTime: Date?
     let startTime: Date?
 
+    /// 用于进度条宽度（封顶 1）
     var ratio: Double { quota > 0 ? min(1, max(0, used / quota)) : 0 }
+    /// 真实使用比例（可超过 1，用于百分比展示）
+    var rawRatio: Double { quota > 0 ? max(0, used / quota) : 0 }
     var remaining: Double { max(0, quota - used) }
-    var percentText: String { String(format: "%.1f%%", ratio * 100) }
+    var percentText: String { String(format: "%.1f%%", rawRatio * 100) }
     var hasQuota: Bool { quota > 0 }
 }
 

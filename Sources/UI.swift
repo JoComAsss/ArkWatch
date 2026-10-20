@@ -60,8 +60,8 @@ struct WindowRow: View {
     }
 
     private var barColor: Color {
-        if window.ratio >= 0.9 { return .red }
-        if window.ratio >= 0.7 { return .orange }
+        if window.rawRatio >= 0.9 { return .red }
+        if window.rawRatio >= 0.7 { return .orange }
         return Color(red: 0.18, green: 0.62, blue: 0.36)
     }
 
@@ -77,9 +77,9 @@ struct WindowRow: View {
                     Text("已用 \(AppModel.formatAFP(window.used)) / \(AppModel.formatAFP(window.quota)) AFP")
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundStyle(.secondary)
-                    Text(String(format: "%.1f%%", window.ratio * 100))
+                    Text(String(format: "%.1f%%", window.rawRatio * 100))
                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(window.ratio >= 0.9 ? Color.red : Color.primary)
+                        .foregroundStyle(window.rawRatio >= 0.9 ? Color.red : Color.primary)
                         .frame(width: 52, alignment: .trailing)
                 }
 
@@ -607,7 +607,7 @@ struct SettingsView: View {
             HStack {
                 Text("菜单栏大小").font(.system(size: 11))
                 Spacer()
-                SettingsSelect(options: stride(from: 80, through: 150, by: 5).map { ("\($0)%", $0) },
+                SettingsSelect(options: stride(from: 80, through: 130, by: 5).map { ("\($0)%", $0) },
                                selection: $prefs.menuBarScalePercent)
             }
 
