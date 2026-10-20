@@ -1,32 +1,46 @@
 import AppKit
 
+// 白底 + 极简红色火山（未喷发）
 let size: CGFloat = 1024
 let image = NSImage(size: NSSize(width: size, height: size))
 image.lockFocus()
 
-// 圆角底板
-let board = NSBezierPath(roundedRect: NSRect(x: 82, y: 82, width: 860, height: 860),
-                         xRadius: 190, yRadius: 190)
-let bg = NSGradient(colors: [
-    NSColor(calibratedRed: 0.16, green: 0.19, blue: 0.28, alpha: 1),
-    NSColor(calibratedRed: 0.07, green: 0.08, blue: 0.12, alpha: 1)
-])!
-bg.draw(in: board, angle: -70)
+// 白色圆角底板
+let boardRect = NSRect(x: 82, y: 82, width: 860, height: 860)
+let board = NSBezierPath(roundedRect: boardRect, xRadius: 190, yRadius: 190)
+NSColor.white.setFill()
+board.fill()
+// 极淡描边，避免在白底环境里边界消失
+NSColor(calibratedWhite: 0.93, alpha: 1).setStroke()
+board.lineWidth = 3
+board.stroke()
 
-// 闪电
-let bolt = NSBezierPath()
-bolt.move(to: NSPoint(x: 596, y: 806))
-bolt.line(to: NSPoint(x: 372, y: 496))
-bolt.line(to: NSPoint(x: 528, y: 496))
-bolt.line(to: NSPoint(x: 428, y: 214))
-bolt.line(to: NSPoint(x: 668, y: 548))
-bolt.line(to: NSPoint(x: 516, y: 548))
-bolt.close()
-let boltGradient = NSGradient(colors: [
-    NSColor(calibratedRed: 1.00, green: 0.84, blue: 0.31, alpha: 1),
-    NSColor(calibratedRed: 1.00, green: 0.58, blue: 0.05, alpha: 1)
-])!
-boltGradient.draw(in: bolt, angle: -80)
+// 火山主体：梯形，顶部为浅浅的火山口凹陷
+let red = NSColor(calibratedRed: 0.86, green: 0.20, blue: 0.16, alpha: 1)
+let darkRed = NSColor(calibratedRed: 0.66, green: 0.11, blue: 0.09, alpha: 1)
+
+let volcano = NSBezierPath()
+volcano.move(to: NSPoint(x: 246, y: 250))
+volcano.line(to: NSPoint(x: 418, y: 700))
+// 火山口：中间微微下凹
+volcano.curve(to: NSPoint(x: 606, y: 700),
+              controlPoint1: NSPoint(x: 478, y: 662),
+              controlPoint2: NSPoint(x: 546, y: 662))
+volcano.line(to: NSPoint(x: 778, y: 250))
+volcano.close()
+red.setFill()
+volcano.fill()
+
+// 火山口沿：一条更深的短线，强调“未喷发”的静止感
+let rim = NSBezierPath()
+rim.move(to: NSPoint(x: 424, y: 697))
+rim.curve(to: NSPoint(x: 600, y: 697),
+          controlPoint1: NSPoint(x: 480, y: 661),
+          controlPoint2: NSPoint(x: 544, y: 661))
+rim.lineWidth = 14
+rim.lineCapStyle = .round
+darkRed.setStroke()
+rim.stroke()
 
 image.unlockFocus()
 
