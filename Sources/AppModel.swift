@@ -18,6 +18,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var statusTitle: String = "Ark"
+    /// 菜单栏小字说明（剩余 / 已用 / 剩余 AFP），为空时不显示
+    @Published private(set) var statusLabel: String = ""
+    /// 菜单栏主数值
+    @Published private(set) var statusValue: String = "⚙"
 
     let store = AccountStore()
     let prefs = Preferences.shared
@@ -37,7 +41,10 @@ final class AppModel: ObservableObject {
             .sink { [weak self] _ in self?.restartTimer() }
             .store(in: &cancellables)
         prefs.$displayMode
-            .sink { [weak self] _ in self?.recomputeTitle() }
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.recomputeTitle()
+            }
             .store(in: &cancellables)
 
         restartTimer()
@@ -159,17 +166,30 @@ final class AppModel: ObservableObject {
 
     // MARK: 菜单栏标题
 
+    private var displayLabel: String {
+        switch prefs.displayMode {
+        case "usedPercent": return "已用"
+        case "remainingAFP": return "剩余 AFP"
+        default: return "剩余"
+        }
+    }
+
     private func recomputeTitle() {
+        statusLabel = ""
+
         guard activeAccount != nil else {
+            statusValue = "⚙"
             statusTitle = "Ark ⚙"
             return
         }
         if isLoading && snapshot == nil {
+            statusValue = "…"
             statusTitle = "Ark …"
             return
         }
         guard let snapshot else {
-            statusTitle = errorMessage == nil ? "Ark —" : "Ark ⚠"
+            statusValue = errorMessage == nil ? "—" : "⚠"
+            statusTitle = "Ark " + statusValue
             return
         }
 
@@ -177,18 +197,21 @@ final class AppModel: ObservableObject {
             ?? snapshot.window("weekly")
             ?? snapshot.windows.first
         guard let window, window.hasQuota else {
+            statusValue = "—"
             statusTitle = "Ark —"
             return
         }
 
         switch prefs.displayMode {
         case "usedPercent":
-            statusTitle = String(format: "%.0f%%", window.ratio * 100)
+            statusValue = String(format: "%.0f%%", window.ratio * 100)
         case "remainingAFP":
-            statusTitle = Self.formatAFP(window.remaining)
+            statusValue = Self.formatAFP(window.remaining)
         default:
-            statusTitle = String(format: "%.0f%%", (1 - window.ratio) * 100)
+            statusValue = String(format: "%.0f%%", (1 - window.ratio) * 100)
         }
+        statusLabel = displayLabel
+        statusTitle = statusLabel + " " + statusValue
     }
 
     // MARK: 定时器

@@ -64,6 +64,22 @@ struct WindowRow: View {
     }
 }
 
+/// 统一尺寸的胶囊标签（套餐、账号共用）
+struct CapsuleTag: View {
+    let text: String
+    var color: Color = .accentColor
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9, weight: .medium))
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .frame(height: 17)
+            .foregroundStyle(color)
+            .background(color.opacity(0.12), in: Capsule())
+    }
+}
+
 // MARK: - 主面板
 
 struct PopoverView: View {
@@ -71,7 +87,6 @@ struct PopoverView: View {
     @ObservedObject var prefs: Preferences
     var openSettings: () -> Void
     var openAddAccount: () -> Void
-    var openPlans: () -> Void
     var quit: () -> Void
 
     var planBadge: String {
@@ -132,15 +147,8 @@ struct PopoverView: View {
                 .font(.system(size: 12))
             Text("ArkWatch").font(.system(size: 12, weight: .semibold))
 
-            Button(action: openPlans) {
-                Text(planBadge)
-                    .font(.system(size: 9, weight: .medium))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.accentColor.opacity(0.12), in: Capsule())
-            }
-            .buttonStyle(.plain)
-            .help("查看全部套餐")
+            CapsuleTag(text: planBadge)
+                .help("套餐信息，可在设置中查看全部套餐")
 
             Spacer()
 
@@ -150,9 +158,9 @@ struct PopoverView: View {
                         model.activeID = account.id
                     } label: {
                         if account.id == model.activeID {
-                            Label(account.name, systemImage: "checkmark")
+                            Label(account.displayName, systemImage: "checkmark")
                         } else {
-                            Text(account.name)
+                            Text(account.displayName)
                         }
                     }
                 }
@@ -160,14 +168,10 @@ struct PopoverView: View {
                 Button("添加账号…") { openAddAccount() }
                 Button("管理账号…") { openSettings() }
             } label: {
-                HStack(spacing: 3) {
-                    Text(model.activeAccount?.name ?? "登录")
-                        .font(.system(size: 11))
-                        .lineLimit(1)
-                    Image(systemName: "chevron.down").font(.system(size: 8))
-                }
+                CapsuleTag(text: model.activeAccount?.displayName ?? "登录", color: .secondary)
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .fixedSize()
 
             Button {
@@ -362,6 +366,7 @@ struct SettingsView: View {
     @ObservedObject var model: AppModel
     @ObservedObject var prefs: Preferences
     @ObservedObject var vm: SettingsModel
+    var openPlans: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -379,7 +384,7 @@ struct SettingsView: View {
                                 .foregroundStyle(account.id == model.activeID ? Color.accentColor : Color.secondary)
                                 .onTapGesture { model.activeID = account.id }
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(account.name).font(.system(size: 12))
+                                Text(account.displayName).font(.system(size: 12))
                                 Text(account.ak).font(.system(size: 9, design: .monospaced))
                                     .foregroundStyle(.secondary).lineLimit(1)
                             }
@@ -404,6 +409,35 @@ struct SettingsView: View {
                 Label("添加账号", systemImage: "plus")
             }
             .controlSize(.small)
+
+            Divider()
+
+            HStack {
+                Text("套餐").font(.system(size: 13, weight: .semibold))
+                Spacer()
+                if let plan = model.plan {
+                    CapsuleTag(text: "\(plan.plan == "CodingPlan" ? "Coding" : "Agent") \(plan.planType)")
+                }
+            }
+
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(model.plan == nil ? "未检测到生效中的套餐" : "当前套餐已生效")
+                        .font(.system(size: 11))
+                    if let plan = model.plan {
+                        Text("\(plan.status)\(plan.endTime.map { " · 到期 \(String($0.prefix(10)))" } ?? "")\(plan.autoRenew == true ? " · 自动续费" : "")")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("绑定 AK 后会自动识别 Agent Plan / Coding Plan")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                Spacer()
+                Button("查看全部套餐") { openPlans() }
+                    .controlSize(.small)
+            }
 
             Divider()
 

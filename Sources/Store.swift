@@ -15,6 +15,9 @@ struct Account: Codable, Identifiable, Equatable {
         self.ak = ak
         self.note = note
     }
+
+    /// 界面统一显示为「用户」
+    var displayName: String { "用户" }
 }
 
 // MARK: - Keychain（保存 Secret Key）

@@ -22,7 +22,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.title = model.statusTitle
             button.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
             button.target = self
             button.action = #selector(togglePopover(_:))
@@ -32,19 +31,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                prefs: model.prefs,
                                openSettings: { [weak self] in self?.showSettings() },
                                openAddAccount: { [weak self] in self?.showAddAccount() },
-                               openPlans: { [weak self] in self?.showPlans() },
                                quit: { NSApp.terminate(nil) })
         popover.contentViewController = NSHostingController(rootView: root)
         popover.behavior = .transient
         popover.animates = false
 
-        model.$statusTitle
+        model.$statusLabel
+            .combineLatest(model.$statusValue)
             .receive(on: RunLoop.main)
-            .sink { [weak self] title in
-                self?.statusItem.button?.title = title
-                self?.statusItem.button?.toolTip = self?.tooltip()
-            }
+            .sink { [weak self] _, _ in self?.updateStatusItem() }
             .store(in: &cancellables)
+        updateStatusItem()
 
         // 数据量变化会改变面板高度，按 SwiftUI 的理想尺寸重设 popover 大小
         model.objectWillChange
@@ -61,6 +58,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let size = view.fittingSize
         guard size.width > 0, size.height > 0 else { return }
         popover.contentSize = NSSize(width: ceil(size.width), height: ceil(size.height))
+    }
+
+    private func updateStatusItem() {
+        guard let button = statusItem.button else { return }
+        let label = model.statusLabel
+        let value = model.statusValue
+
+        if label.isEmpty {
+            button.attributedTitle = NSAttributedString(string: value, attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: NSColor.labelColor
+            ])
+        } else {
+            let para = NSMutableParagraphStyle()
+            para.alignment = .left
+            para.minimumLineHeight = 9
+            para.maximumLineHeight = 9
+            let attr = NSMutableAttributedString(string: label, attributes: [
+                .font: NSFont.systemFont(ofSize: 8, weight: .regular),
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .paragraphStyle: para
+            ])
+            attr.append(NSAttributedString(string: "\n" + value, attributes: [
+                .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: NSColor.labelColor,
+                .paragraphStyle: para
+            ]))
+            button.attributedTitle = attr
+        }
+        button.toolTip = tooltip()
     }
 
     private func tooltip() -> String {
@@ -114,11 +141,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if settingsWC == nil {
             settingsWC = PanelWindowController.make(
                 title: "ArkWatch 设置",
-                view: SettingsView(model: model, prefs: model.prefs, vm: settingsVM),
+                view: SettingsView(model: model, prefs: model.prefs, vm: settingsVM,
+                                   openPlans: { [weak self] in self?.showPlans() }),
                 size: NSSize(width: 420, height: 560))
         } else {
             settingsWC?.contentViewController = NSHostingController(
-                rootView: SettingsView(model: model, prefs: model.prefs, vm: settingsVM))
+                rootView: SettingsView(model: model, prefs: model.prefs, vm: settingsVM,
+                                       openPlans: { [weak self] in self?.showPlans() }))
         }
         settingsWC?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -197,7 +226,7 @@ func runRenderAndExit(path: String, demo: Bool) -> Never {
     let model = AppModel()
     if demo { model.loadDemoData() }
     let view = PopoverView(model: model, prefs: model.prefs,
-                           openSettings: {}, openAddAccount: {}, openPlans: {}, quit: {})
+                           openSettings: {}, openAddAccount: {}, quit: {})
     let hosting = NSHostingView(rootView: view)
     hosting.frame = NSRect(x: 0, y: 0, width: 400, height: demo ? 360 : 190)
     hosting.layoutSubtreeIfNeeded()
