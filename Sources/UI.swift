@@ -417,7 +417,7 @@ struct SettingsView: View {
                 if model.activeAccount != nil {
                     if model.isCheckingPlan {
                         CapsuleTag(text: "检测中", color: Color(red: 0.78, green: 0.60, blue: 0.05))
-                    } else if model.plan != nil {
+                    } else if model.isSelectedPlanOpened {
                         CapsuleTag(text: "已开通 · \(model.selectedPlanLabel)", color: .green)
                     } else {
                         CapsuleTag(text: "未开通", color: .red)
@@ -441,7 +441,6 @@ struct SettingsView: View {
                 .buttonStyle(.bordered)
                 .frame(width: 130, height: 22)
             }
-            .padding(.leading, 12)
 
             HStack(spacing: 8) {
                 Text("套餐生效时间范围").font(.system(size: 11))

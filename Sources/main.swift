@@ -141,6 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func showPlans() {
         popover.performClose(nil)
+        model.detectPlan()
         let view = PlansView(model: model, openConsole: { [weak self] in self?.openPlanConsole() })
         if plansWC == nil {
             plansWC = PanelWindowController.make(title: "火山方舟套餐", view: view,

@@ -66,6 +66,13 @@ final class AppModel: ObservableObject {
         if activeAccount != nil { refresh(force: true) }
     }
 
+    /// 当前查看的套餐是否处于已开通状态
+    var isSelectedPlanOpened: Bool {
+        guard plan != nil else { return false }
+        guard let selectedPlanID else { return true }
+        return selectedPlanID == livePlanID
+    }
+
     /// 套餐生效时间范围，未开通返回「无」
     var planRangeText: String {
         guard let plan, let start = plan.startTime, let end = plan.endTime,
@@ -257,14 +264,15 @@ final class AppModel: ObservableObject {
             statusTitle = "Ark …"
             return
         }
+        if !isSelectedPlanOpened {
+            statusValue = "无"
+            statusTitle = "Ark 无"
+            return
+        }
+
         guard let snapshot else {
-            if plan == nil {
-                statusValue = "无"
-                statusTitle = "Ark 无"
-            } else {
-                statusValue = errorMessage == nil ? "—" : "⚠"
-                statusTitle = "Ark " + statusValue
-            }
+            statusValue = errorMessage == nil ? "—" : "⚠"
+            statusTitle = "Ark " + statusValue
             return
         }
 
