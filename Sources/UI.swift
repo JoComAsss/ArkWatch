@@ -187,7 +187,7 @@ struct PopoverView: View {
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("尚未添加账号").font(.system(size: 12, weight: .medium))
-            Text("使用火山引擎 Access Key（AK/SK）登录，可在同一台机器上保存多个账号并随时切换。")
+            Text("使用火山引擎 API 访问密钥（账号 + 密码）登录，可在同一台机器上保存多个账号并随时切换。")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -320,7 +320,7 @@ struct SettingsView: View {
             Text("账号").font(.system(size: 13, weight: .semibold))
 
             if model.accounts.isEmpty {
-                Text("还没有账号，点击下方「添加账号」使用 AK/SK 登录。")
+                Text("还没有账号，点击下方「添加账号」，填入 API 访问密钥的账号与密码即可。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else {
@@ -417,25 +417,29 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title).font(.system(size: 13, weight: .semibold))
 
-            TextField("账号名称（如：个人 / 公司）", text: $vm.newName)
-                .textFieldStyle(.roundedBorder)
-
-            if account == nil {
-                TextField("Access Key ID", text: $vm.newAK)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 11, design: .monospaced))
-            } else {
-                Text("AK：\(account!.ak)")
-                    .font(.system(size: 9, design: .monospaced))
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("账号").font(.system(size: 10)).foregroundStyle(.secondary)
+                if account == nil {
+                    TextField("Access Key ID，通常以 AKLT 开头", text: $vm.newAK)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 11, design: .monospaced))
+                } else {
+                    Text(account!.ak)
+                        .font(.system(size: 11, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(6)
+                        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 5))
+                }
             }
 
-            SecureField(account == nil ? "Secret Access Key" : "Secret Access Key（留空则不修改）",
-                        text: $vm.newSK)
-                .textFieldStyle(.roundedBorder)
-
-            TextField("备注（可选）", text: $vm.newNote)
-                .textFieldStyle(.roundedBorder)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("密码").font(.system(size: 10)).foregroundStyle(.secondary)
+                SecureField(account == nil ? "Secret Access Key" : "Secret Access Key（留空则不修改）",
+                            text: $vm.newSK)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 11, design: .monospaced))
+            }
 
             if !vm.verifyMessage.isEmpty {
                 Text(vm.verifyMessage)
@@ -466,9 +470,14 @@ struct SettingsView: View {
                 .keyboardShortcut(.defaultAction)
                 .disabled(vm.newSK.isEmpty || (account == nil && vm.newAK.isEmpty))
             }
+
+            Text("这两项是火山引擎「访问控制 → API 访问密钥」里的 Access Key ID 与 Secret Access Key，不是控制台登录用的手机号/密码。")
+                .font(.system(size: 9))
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(16)
-        .frame(width: 380)
+        .frame(width: 400)
     }
 }
 
