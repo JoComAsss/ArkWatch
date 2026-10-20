@@ -41,6 +41,24 @@ struct WindowRow: View {
         return "\(minutes) 分钟后重置"
     }
 
+    /// 基于绝对重置时间每秒重算，避免使用缓存快照里的旧倒计时
+    static func resetDescription(_ reset: Date, now: Date) -> String {
+        let interval = reset.timeIntervalSince(now)
+        if interval <= 0 { return "即将重置" }
+        let total = Int(interval.rounded(.down))
+        let days = total / 86_400
+        let hours = (total % 86_400) / 3_600
+        let minutes = (total % 3_600) / 60
+        let seconds = total % 60
+        var parts: [String] = []
+        if days > 0 { parts.append("\(days) 天") }
+        if hours > 0 || days > 0 { parts.append("\(hours) 小时") }
+        parts.append("\(minutes) 分")
+        parts.append(String(format: "%02d 秒", seconds))
+        let clock = reset.formatted(date: .omitted, time: .standard)
+        return parts.joined(separator: " ") + "后重置 · \(clock)"
+    }
+
     private var barColor: Color {
         if window.ratio >= 0.9 { return .red }
         if window.ratio >= 0.7 { return .orange }
@@ -76,10 +94,12 @@ struct WindowRow: View {
                 }
                 .frame(height: 8)
 
-                if showReset && !resetText.isEmpty {
-                    Text(resetText)
-                        .font(.system(size: 9))
-                        .foregroundStyle(.tertiary)
+                if showReset, let reset = window.resetTime {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(Self.resetDescription(reset, now: context.date))
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
             .padding(.vertical, 7)
