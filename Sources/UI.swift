@@ -202,6 +202,7 @@ struct PopoverView: View {
     @ObservedObject var prefs: Preferences
     var openSettings: () -> Void
     var openAddAccount: () -> Void
+    var openAbout: () -> Void
     var quit: () -> Void
 
     var planBadge: String {
@@ -271,15 +272,17 @@ struct PopoverView: View {
                         model.activeID = account.id
                     } label: {
                         if account.id == model.activeID {
-                            Label(account.displayName, systemImage: "checkmark")
+                            Label(account.menuName, systemImage: "checkmark")
                         } else {
-                            Text(account.displayName)
+                            Text(account.menuName)
                         }
                     }
                 }
                 if !model.accounts.isEmpty { Divider() }
                 Button("添加账号…") { openAddAccount() }
                 Button("管理账号…") { openSettings() }
+                Divider()
+                Button("关于 ArkWatch") { openAbout() }
             } label: {
                 CapsuleTag(text: model.activeAccount?.displayName ?? "登录", color: .secondary)
             }
@@ -646,6 +649,14 @@ struct SettingsView: View {
                 .controlSize(.small)
 
             Divider()
+
+            HStack {
+                Text("版本").font(.system(size: 9)).foregroundStyle(.tertiary)
+                Text(AppInfo.versionText)
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                Spacer()
+            }
 
             Text("AK/SK 在火山引擎控制台「API 访问密钥」中创建；Secret Key 仅保存在本机钥匙串。")
                 .font(.system(size: 9))

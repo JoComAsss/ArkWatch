@@ -5,7 +5,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var accounts: [Account] = []
     @Published var activeID: String? {
         didSet {
+            guard oldValue != activeID else { return }
             UserDefaults.standard.set(activeID, forKey: "activeAccountID")
+            // 套餐选择是账号维度的，切号后回到「跟随实际套餐」
+            if selectedPlanID != nil {
+                selectedPlanID = nil
+            }
             refresh(force: true)
             recomputeTitle()
         }

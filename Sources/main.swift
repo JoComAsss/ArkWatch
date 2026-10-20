@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                prefs: model.prefs,
                                openSettings: { [weak self] in self?.showSettings() },
                                openAddAccount: { [weak self] in self?.showAddAccount() },
+                               openAbout: { [weak self] in self?.showAbout() },
                                quit: { NSApp.terminate(nil) })
         popover.contentViewController = NSHostingController(rootView: root)
         popover.behavior = .transient
@@ -137,6 +138,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
+    }
+
+    func showAbout() {
+        popover.performClose(nil)
+        let credits = NSAttributedString(
+            string: "火山方舟用量菜单栏监控\nhttps://github.com/JoComAsss/ArkWatch",
+            attributes: [.font: NSFont.systemFont(ofSize: 10)]
+        )
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "ArkWatch",
+            .applicationVersion: AppInfo.version,
+            .version: "build \(AppInfo.build)",
+            .credits: credits
+        ])
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func showPlans() {
@@ -253,25 +269,8 @@ if arguments.contains("--help") {
     exit(0)
 }
 
-if arguments.contains("--mode-check") { runModeCheckAndExit() }
 if let idx = arguments.firstIndex(of: "--render"), idx + 1 < arguments.count {
     runRenderAndExit(path: arguments[idx + 1], demo: arguments.contains("--demo"))
-}
-
-func runModeCheckAndExit() -> Never {
-    let model = AppModel()
-    model.loadDemoData()
-    func dump(_ tag: String) {
-        print("\(tag): label=\(model.statusLabel) value=\(model.statusValue)")
-    }
-    model.prefs.menuBarWindow = "monthly"
-    model.prefs.displayMode = "usedPercent"
-    RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-    dump("usedPercent   (期望 47.4%)")
-    model.prefs.displayMode = "remainingPercent"
-    RunLoop.main.run(until: Date().addingTimeInterval(0.4))
-    dump("remainingPct  (期望 52.6%)")
-    exit(0)
 }
 
 func runRenderAndExit(path: String, demo: Bool) -> Never {
@@ -280,7 +279,7 @@ func runRenderAndExit(path: String, demo: Bool) -> Never {
     let model = AppModel()
     if demo { model.loadDemoData() }
     let view = PopoverView(model: model, prefs: model.prefs,
-                           openSettings: {}, openAddAccount: {}, quit: {})
+                           openSettings: {}, openAddAccount: {}, openAbout: {}, quit: {})
     let hosting = NSHostingView(rootView: view)
     hosting.frame = NSRect(x: 0, y: 0, width: 400, height: demo ? 360 : 190)
     hosting.layoutSubtreeIfNeeded()

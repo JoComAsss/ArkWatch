@@ -18,6 +18,24 @@ struct Account: Codable, Identifiable, Equatable {
 
     /// 界面统一显示为「用户」
     var displayName: String { "用户" }
+
+    /// 切换菜单里的区分名：用户 · 尾号
+    var menuName: String {
+        guard ak.count >= 4 else { return displayName }
+        return "\(displayName) · \(ak.suffix(4))"
+    }
+}
+
+// MARK: - 版本信息
+
+enum AppInfo {
+    static var version: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+    static var build: String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+    }
+    static var versionText: String { "\(version) (\(build))" }
 }
 
 // MARK: - Keychain（保存 Secret Key）

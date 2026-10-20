@@ -175,7 +175,8 @@ final class ArkClient {
     func fetchUsage(for day: Date = Date()) async throws -> [UsageRow] {
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "en_US_POSIX")
-        fmt.timeZone = .current
+        // 方舟按北京时间自然日统计，固定 UTC+8 避免跨时区查错日期
+        fmt.timeZone = TimeZone(identifier: "Asia/Shanghai") ?? .current
         fmt.dateFormat = "yyyy-MM-dd"
         let dayString = fmt.string(from: day)
 
