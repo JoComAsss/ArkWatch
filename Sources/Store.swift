@@ -145,12 +145,32 @@ final class Preferences: ObservableObject {
         }
     }
 
+    /// 设置窗口缩放（0.8 ~ 1.5）
+    @Published var settingsScale: Double {
+        didSet { UserDefaults.standard.set(settingsScale, forKey: "settingsScale") }
+    }
+
+    /// 菜单栏字号缩放（0.8 ~ 1.5）
+    @Published var menuBarScale: Double {
+        didSet { UserDefaults.standard.set(menuBarScale, forKey: "menuBarScale") }
+    }
+
+    /// system / light / dark
+    @Published var appearanceMode: String {
+        didSet { UserDefaults.standard.set(appearanceMode, forKey: "appearanceMode") }
+    }
+
     private init() {
         let defaults = UserDefaults.standard
         let storedRefresh = defaults.integer(forKey: "refreshSeconds")
         refreshSeconds = storedRefresh >= 15 ? storedRefresh : 60
         displayMode = defaults.string(forKey: "displayMode") ?? "remainingPercent"
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
+        let storedSettingsScale = defaults.double(forKey: "settingsScale")
+        settingsScale = storedSettingsScale >= 0.5 ? storedSettingsScale : 1.0
+        let storedMenuScale = defaults.double(forKey: "menuBarScale")
+        menuBarScale = storedMenuScale >= 0.5 ? storedMenuScale : 1.0
+        appearanceMode = defaults.string(forKey: "appearanceMode") ?? "system"
     }
 }
 

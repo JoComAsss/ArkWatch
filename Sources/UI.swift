@@ -415,7 +415,7 @@ struct SettingsView: View {
             HStack(spacing: 8) {
                 Text("套餐").font(.system(size: 13, weight: .semibold))
                 if let plan = model.plan {
-                    CapsuleTag(text: "\(plan.plan == "CodingPlan" ? "Coding" : "Agent") \(plan.planType)")
+                    CapsuleTag(text: "当前：\(plan.plan == "CodingPlan" ? "Coding" : "Agent") \(plan.planType)")
                 }
                 Spacer()
             }
@@ -441,6 +441,42 @@ struct SettingsView: View {
 
             Divider()
 
+            Text("外观").font(.system(size: 13, weight: .semibold))
+
+            HStack {
+                Text("设置栏大小").font(.system(size: 11))
+                Spacer()
+                Slider(value: $prefs.settingsScale, in: 0.8...1.5, step: 0.05)
+                    .frame(width: 130)
+                Text("\(Int(prefs.settingsScale * 100))%")
+                    .font(.system(size: 10, design: .monospaced))
+                    .frame(width: 38, alignment: .trailing)
+            }
+
+            HStack {
+                Text("菜单栏大小").font(.system(size: 11))
+                Spacer()
+                Slider(value: $prefs.menuBarScale, in: 0.8...1.5, step: 0.05)
+                    .frame(width: 130)
+                Text("\(Int(prefs.menuBarScale * 100))%")
+                    .font(.system(size: 10, design: .monospaced))
+                    .frame(width: 38, alignment: .trailing)
+            }
+
+            HStack {
+                Text("整体外观").font(.system(size: 11))
+                Spacer()
+                Picker("", selection: $prefs.appearanceMode) {
+                    Text("跟随系统").tag("system")
+                    Text("浅色").tag("light")
+                    Text("深色").tag("dark")
+                }
+                .labelsHidden()
+                .frame(width: 130, alignment: .trailing)
+            }
+
+            Divider()
+
             Text("通用").font(.system(size: 13, weight: .semibold))
 
             HStack {
@@ -453,7 +489,7 @@ struct SettingsView: View {
                     Text("5 分钟").tag(300)
                 }
                 .labelsHidden()
-                .frame(width: 130)
+                .frame(width: 130, alignment: .trailing)
             }
 
             HStack {
@@ -465,7 +501,7 @@ struct SettingsView: View {
                     Text("剩余 AFP").tag("remainingAFP")
                 }
                 .labelsHidden()
-                .frame(width: 130)
+                .frame(width: 130, alignment: .trailing)
             }
 
             Toggle("开机自动启动", isOn: $prefs.launchAtLogin)
@@ -566,6 +602,23 @@ struct SettingsView: View {
         }
         .padding(16)
         .frame(width: 400)
+    }
+}
+
+// MARK: - 设置窗口容器（按设置栏缩放内联缩放，不重建视图树）
+
+struct SettingsContainer: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject var prefs: Preferences
+    @ObservedObject var vm: SettingsModel
+    var openPlans: () -> Void
+
+    private var factor: Double { min(1.5, max(0.8, prefs.settingsScale)) }
+
+    var body: some View {
+        SettingsView(model: model, prefs: prefs, vm: vm, openPlans: openPlans)
+            .scaleEffect(factor, anchor: .topLeading)
+            .frame(width: 420 * factor, height: 600 * factor, alignment: .topLeading)
     }
 }
 

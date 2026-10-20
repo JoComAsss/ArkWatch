@@ -41,6 +41,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _, _ in self?.updateStatusItem() }
             .store(in: &cancellables)
+
+        model.prefs.$menuBarScale
+            .receive(on: RunLoop.main)
+            .sink { [weak self] scale in self?.updateStatusItem(scale: scale) }
+            .store(in: &cancellables)
+
+        model.prefs.$settingsScale
+            .receive(on: RunLoop.main)
+            .sink { [weak self] scale in self?.resizeSettingsWindow(scale: scale) }
+            .store(in: &cancellables)
+
+        model.prefs.$appearanceMode
+            .receive(on: RunLoop.main)
+            .sink { mode in Self.applyAppearance(mode) }
+            .store(in: &cancellables)
+
+        Self.applyAppearance(model.prefs.appearanceMode)
         updateStatusItem()
 
         // 数据量变化会改变面板高度，按 SwiftUI 的理想尺寸重设 popover 大小
@@ -60,25 +77,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.contentSize = NSSize(width: ceil(size.width), height: ceil(size.height))
     }
 
-    private func updateStatusItem() {
+    private func updateStatusItem(scale: Double? = nil) {
         guard let button = statusItem.button else { return }
-        button.attributedTitle = Self.makeStatusTitle(label: model.statusLabel, value: model.statusValue)
+        let factor = scale ?? model.prefs.menuBarScale
+        button.attributedTitle = Self.makeStatusTitle(label: model.statusLabel,
+                                                      value: model.statusValue,
+                                                      scale: factor)
         button.toolTip = tooltip()
     }
 
     /// 菜单栏标题：蓝色小字说明以上标形式放在数值左上角，数值放大
-    static func makeStatusTitle(label: String, value: String) -> NSAttributedString {
-        let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+    static func makeStatusTitle(label: String, value: String, scale: Double = 1.0) -> NSAttributedString {
+        let factor = min(1.5, max(0.8, scale))
+        let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 13 * factor, weight: .semibold)
         let result = NSMutableAttributedString()
 
         if !label.isEmpty {
             result.append(NSAttributedString(string: label, attributes: [
-                .font: NSFont.systemFont(ofSize: 8, weight: .semibold),
+                .font: NSFont.systemFont(ofSize: 8 * factor, weight: .semibold),
                 .foregroundColor: NSColor.systemBlue,
-                .baselineOffset: 6
+                .baselineOffset: 6 * factor
             ]))
             result.append(NSAttributedString(string: " ", attributes: [
-                .font: NSFont.systemFont(ofSize: 6)
+                .font: NSFont.systemFont(ofSize: 6 * factor)
             ]))
         }
 
@@ -135,21 +156,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(PlanCatalog.consoleURL)
     }
 
+    private var settingsRoot: some View {
+        SettingsContainer(model: model, prefs: model.prefs, vm: settingsVM,
+                          openPlans: { [weak self] in self?.showPlans() })
+    }
+
     func showSettings() {
         popover.performClose(nil)
+        let factor = min(1.5, max(0.8, model.prefs.settingsScale))
         if settingsWC == nil {
             settingsWC = PanelWindowController.make(
                 title: "ArkWatch 设置",
-                view: SettingsView(model: model, prefs: model.prefs, vm: settingsVM,
-                                   openPlans: { [weak self] in self?.showPlans() }),
-                size: NSSize(width: 420, height: 560))
-        } else {
-            settingsWC?.contentViewController = NSHostingController(
-                rootView: SettingsView(model: model, prefs: model.prefs, vm: settingsVM,
-                                       openPlans: { [weak self] in self?.showPlans() }))
+                view: settingsRoot,
+                size: NSSize(width: 420 * factor, height: 600 * factor))
         }
         settingsWC?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// 只调整窗口尺寸，缩放本身由 SettingsContainer 内联完成
+    private func resizeSettingsWindow(scale: Double) {
+        guard let window = settingsWC?.window else { return }
+        let factor = min(1.5, max(0.8, scale))
+        window.setContentSize(NSSize(width: 420 * factor, height: 600 * factor))
+    }
+
+    static func applyAppearance(_ mode: String) {
+        switch mode {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+        default: NSApp.appearance = nil
+        }
     }
 
     func showAddAccount() {
