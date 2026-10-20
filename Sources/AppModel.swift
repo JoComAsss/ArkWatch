@@ -3,14 +3,7 @@ import Combine
 
 final class AppModel: ObservableObject {
     @Published private(set) var accounts: [Account] = []
-    @Published var activeID: String? {
-        didSet {
-            UserDefaults.standard.set(activeID, forKey: "activeAccountID")
-            refresh(force: true)
-            recomputeTitle()
-        }
-    }
-
+    @Published private(set) var session: Session?
     @Published private(set) var snapshot: AFPSnapshot?
     @Published private(set) var plan: PlanInfo?
     @Published private(set) var usageRows: [UsageRow] = []
@@ -24,14 +17,20 @@ final class AppModel: ObservableObject {
     private var timer: Timer?
     private var cancellables: Set<AnyCancellable> = []
 
+    var isLoggedIn: Bool { session != nil }
+
     var activeAccount: Account? {
-        accounts.first { $0.id == activeID }
+        guard let session else { return nil }
+        return accounts.first { $0.phone == session.phone }
     }
 
     init() {
         accounts = store.accounts
-        let saved = UserDefaults.standard.string(forKey: "activeAccountID")
-        activeID = accounts.contains(where: { $0.id == saved }) ? saved : accounts.first?.id
+        if let restored = SessionStore.load() {
+            session = restored
+            store.ensureAccount(phone: restored.phone)
+            accounts = store.accounts
+        }
 
         prefs.$refreshSeconds
             .sink { [weak self] _ in self?.restartTimer() }
@@ -42,37 +41,72 @@ final class AppModel: ObservableObject {
 
         restartTimer()
         recomputeTitle()
-        if activeAccount != nil { refresh(force: true) }
+        if session != nil { refresh(force: true) }
     }
 
-    // MARK: 账号管理
+    // MARK: 登录 / 退出
+
+    /// 验证码校验通过后建立会话；会话写入钥匙串，重启后自动恢复，直到用户主动退出
+    @discardableResult
+    func login(phone: String) -> Account {
+        let account = store.ensureAccount(phone: phone)
+        accounts = store.accounts
+        let newSession = Session(phone: phone, token: UUID().uuidString, loginAt: Date())
+        session = newSession
+        SessionStore.save(newSession)
+        errorMessage = nil
+        recomputeTitle()
+        refresh(force: true)
+        return account
+    }
+
+    /// 退出登录：清除会话（账号与 AK/SK 仍保留，下次验证码登录后可继续使用）
+    func logout() {
+        SessionStore.clear()
+        session = nil
+        snapshot = nil
+        plan = nil
+        usageRows = []
+        errorMessage = nil
+        lastUpdated = nil
+        isLoading = false
+        recomputeTitle()
+    }
+
+    // MARK: 账号信息
 
     func reloadAccounts() {
         store.load()
         accounts = store.accounts
-        if !accounts.contains(where: { $0.id == activeID }) {
-            activeID = accounts.first?.id
-        }
         recomputeTitle()
     }
 
-    @discardableResult
-    func addAccount(name: String, ak: String, sk: String, note: String) -> Account? {
-        guard let account = store.add(name: name, ak: ak, sk: sk, note: note) else { return nil }
+    /// 绑定 / 更新 AK（SK 为空表示不修改）
+    func bindCredentials(phone: String, ak: String, sk: String, name: String, note: String) {
+        store.ensureAccount(phone: phone)
+        guard var account = store.account(phone: phone) else { return }
+        account.ak = ak.trimmingCharacters(in: .whitespacesAndNewlines)
+        account.name = name.isEmpty ? account.maskedPhone : name
+        account.note = note
+        store.update(account, sk: sk.isEmpty ? nil : sk)
         reloadAccounts()
-        activeID = account.id
-        return account
+        if session?.phone == phone { refresh(force: true) }
     }
 
     func updateAccount(_ account: Account, sk: String?) {
         store.update(account, sk: sk)
         reloadAccounts()
-        if account.id == activeID { refresh(force: true) }
+        if account.phone == session?.phone { refresh(force: true) }
     }
 
     func deleteAccount(_ account: Account) {
         store.remove(account)
         reloadAccounts()
+        if account.phone == session?.phone { refresh(force: true) }
+    }
+
+    func secretKey(for account: Account) -> String? {
+        store.secretKey(for: account)
     }
 
     /// 校验一组 AK/SK 是否可用，返回可读结果
@@ -93,16 +127,22 @@ final class AppModel: ObservableObject {
 
     func refresh(force: Bool = false) {
         guard !isLoading else { return }
-        guard let account = activeAccount else { return }
+        guard let session, let account = activeAccount else { return }
+
+        guard account.hasCredentials else {
+            errorMessage = "尚未绑定 AK/SK，请在设置中完成绑定后即可读取用量"
+            recomputeTitle()
+            return
+        }
         guard let sk = store.secretKey(for: account), !sk.isEmpty else {
-            errorMessage = "账号「\(account.name)」缺少 Secret Key，请重新编辑账号"
+            errorMessage = "该账号缺少 Secret Key，请在设置中重新绑定"
             recomputeTitle()
             return
         }
 
         isLoading = true
         let client = ArkClient(ak: account.ak, sk: sk)
-        let accountID = account.id
+        let loginToken = session.token
 
         Task { [weak self] in
             guard let self else { return }
@@ -141,13 +181,13 @@ final class AppModel: ObservableObject {
 
             let collectedErrors = errors
             await MainActor.run {
-                // 账号在刷新过程中被切换则丢弃结果
-                guard accountID == self.activeID else {
+                // 期间退出登录或切换账号则丢弃结果
+                guard self.session?.token == loginToken else {
                     self.isLoading = false
                     return
                 }
-                if newSnapshot != nil { self.snapshot = newSnapshot }
-                if newPlan != nil { self.plan = newPlan }
+                if let snapshot = newSnapshot { self.snapshot = snapshot }
+                if let plan = newPlan { self.plan = plan }
                 if !newRows.isEmpty || collectedErrors.isEmpty { self.usageRows = newRows }
                 self.errorMessage = collectedErrors.isEmpty ? nil : collectedErrors.joined(separator: "\n")
                 self.lastUpdated = Date()
@@ -160,7 +200,11 @@ final class AppModel: ObservableObject {
     // MARK: 菜单栏标题
 
     private func recomputeTitle() {
-        guard activeAccount != nil else {
+        guard session != nil else {
+            statusTitle = "Ark 登录"
+            return
+        }
+        guard let account = activeAccount, account.hasCredentials else {
             statusTitle = "Ark ⚙"
             return
         }
@@ -197,7 +241,10 @@ final class AppModel: ObservableObject {
         timer?.invalidate()
         let interval = TimeInterval(max(15, prefs.refreshSeconds))
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            Task { @MainActor in
+                guard let self, self.session != nil else { return }
+                self.refresh()
+            }
         }
         timer?.tolerance = 5
     }
@@ -206,6 +253,8 @@ final class AppModel: ObservableObject {
 
     func loadDemoData() {
         let now = Date()
+        session = Session(phone: "13800008000", token: "demo", loginAt: now)
+        accounts = [Account(phone: "13800008000", name: "个人", ak: "AKLTdemo")]
         snapshot = AFPSnapshot(planType: "Small", windows: [
             AFPWindow(id: "fiveHour", title: "5 小时", used: 812, quota: 2000,
                       resetTime: now.addingTimeInterval(2.4 * 3600), startTime: now.addingTimeInterval(-2.6 * 3600)),
@@ -227,6 +276,7 @@ final class AppModel: ObservableObject {
             UsageRow(model: "doubao-seed-2.1-pro", unit: "Tokens", billingType: "OutsideOfPlan", usage: 18_400, time: now)
         ]
         lastUpdated = now
+        recomputeTitle()
     }
 
     // MARK: 展示辅助

@@ -1,23 +1,60 @@
 import Foundation
 import Security
 
-// MARK: - 账号
+// MARK: - 账号（手机号身份 + 绑定的 AK/SK）
 
 struct Account: Codable, Identifiable, Equatable {
     var id: String
+    var phone: String
     var name: String
     var ak: String
     var note: String
+    var createdAt: Date
 
-    init(id: String = UUID().uuidString, name: String, ak: String, note: String = "") {
+    init(id: String = UUID().uuidString,
+         phone: String,
+         name: String = "",
+         ak: String = "",
+         note: String = "",
+         createdAt: Date = Date()) {
         self.id = id
+        self.phone = phone
         self.name = name
         self.ak = ak
         self.note = note
+        self.createdAt = createdAt
     }
+
+    /// 兼容旧版本 accounts.json（没有 phone / createdAt 字段）
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id) ?? UUID().uuidString
+        phone = try c.decodeIfPresent(String.self, forKey: .phone) ?? ""
+        name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+        ak = try c.decodeIfPresent(String.self, forKey: .ak) ?? ""
+        note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
+        createdAt = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+    }
+
+    var maskedPhone: String {
+        guard phone.count == 11 else { return phone.isEmpty ? "未绑定手机号" : phone }
+        let start = phone.prefix(3)
+        let end = phone.suffix(4)
+        return "\(start)****\(end)"
+    }
+
+    var hasCredentials: Bool { !ak.isEmpty && !phone.isEmpty }
 }
 
-// MARK: - Keychain（保存 Secret Key）
+// MARK: - 会话（登录态，保留到用户主动退出）
+
+struct Session: Codable, Equatable {
+    var phone: String
+    var token: String
+    var loginAt: Date
+}
+
+// MARK: - Keychain
 
 enum Keychain {
     private static let service = "com.joco.arkwatch"
@@ -89,15 +126,15 @@ final class AccountStore {
         try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
     }
 
+    func account(phone: String) -> Account? {
+        accounts.first { $0.phone == phone }
+    }
+
+    /// 登录时确保该手机号有账号记录
     @discardableResult
-    func add(name: String, ak: String, sk: String, note: String = "") -> Account? {
-        let trimmedAK = ak.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedSK = sk.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedAK.isEmpty, !trimmedSK.isEmpty else { return nil }
-        let account = Account(name: name.isEmpty ? String(trimmedAK.prefix(8)) : name,
-                              ak: trimmedAK,
-                              note: note)
-        guard Keychain.set(trimmedSK, account: account.id) else { return nil }
+    func ensureAccount(phone: String) -> Account {
+        if let existing = account(phone: phone) { return existing }
+        let account = Account(phone: phone, name: phone)
         accounts.append(account)
         save()
         return account
@@ -120,6 +157,27 @@ final class AccountStore {
 
     func secretKey(for account: Account) -> String? {
         Keychain.get(account: account.id)
+    }
+}
+
+// MARK: - 登录态存取
+
+enum SessionStore {
+    private static let key = "session"
+    private static let service = "com.joco.arkwatch.session"
+
+    static func save(_ session: Session) {
+        guard let data = try? JSONEncoder().encode(session) else { return }
+        _ = Keychain.set(String(data: data, encoding: .utf8) ?? "", account: key)
+    }
+
+    static func load() -> Session? {
+        guard let raw = Keychain.get(account: key), let data = raw.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(Session.self, from: data)
+    }
+
+    static func clear() {
+        Keychain.delete(account: key)
     }
 }
 
