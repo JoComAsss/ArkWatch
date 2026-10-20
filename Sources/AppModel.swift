@@ -29,6 +29,7 @@ final class AppModel: ObservableObject {
     @Published var selectedPlanID: String? {
         didSet {
             UserDefaults.standard.set(selectedPlanID, forKey: "selectedPlanID")
+            detectPlan()
             recomputeTitle()
         }
     }
@@ -63,6 +64,13 @@ final class AppModel: ObservableObject {
         restartTimer()
         recomputeTitle()
         if activeAccount != nil { refresh(force: true) }
+    }
+
+    /// 套餐生效时间范围，未开通返回「无」
+    var planRangeText: String {
+        guard let plan, let start = plan.startTime, let end = plan.endTime,
+              start.count >= 10, end.count >= 10 else { return "无" }
+        return "\(String(start.prefix(10))) ~ \(String(end.prefix(10)))"
     }
 
     // MARK: 套餐检测
@@ -250,8 +258,13 @@ final class AppModel: ObservableObject {
             return
         }
         guard let snapshot else {
-            statusValue = errorMessage == nil ? "—" : "⚠"
-            statusTitle = "Ark " + statusValue
+            if plan == nil {
+                statusValue = "无"
+                statusTitle = "Ark 无"
+            } else {
+                statusValue = errorMessage == nil ? "—" : "⚠"
+                statusTitle = "Ark " + statusValue
+            }
             return
         }
 

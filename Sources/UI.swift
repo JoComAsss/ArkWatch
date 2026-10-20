@@ -415,29 +415,40 @@ struct SettingsView: View {
             HStack(spacing: 8) {
                 Text("套餐").font(.system(size: 13, weight: .semibold))
                 if model.activeAccount != nil {
-                    CapsuleTag(text: "当前：\(model.selectedPlanLabel)")
+                    if model.isCheckingPlan {
+                        CapsuleTag(text: "检测中", color: Color(red: 0.78, green: 0.60, blue: 0.05))
+                    } else if model.plan != nil {
+                        CapsuleTag(text: "已开通 · \(model.selectedPlanLabel)", color: .green)
+                    } else {
+                        CapsuleTag(text: "未开通", color: .red)
+                    }
                 }
                 Spacer()
             }
 
             HStack(spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(model.plan == nil ? "未检测到生效中的套餐" : "当前套餐已生效")
-                        .font(.system(size: 11))
-                    if let plan = model.plan {
-                        Text("\(plan.status)\(plan.endTime.map { " · 到期 \(String($0.prefix(10)))" } ?? "")\(plan.autoRenew == true ? " · 自动续费" : "")")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("绑定 AK 后会自动识别 Agent Plan / Coding Plan")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.tertiary)
-                    }
-                }
+                Text("查看全部套餐").font(.system(size: 11))
                 Spacer()
-                Button("查看全部套餐") { openPlans() }
-                    .controlSize(.regular)
-                    .frame(width: 130, height: 22)
+                Button {
+                    openPlans()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("展开").font(.system(size: 11))
+                        Image(systemName: "chevron.down").font(.system(size: 8))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .frame(width: 130, height: 22)
+            }
+            .padding(.leading, 12)
+
+            HStack(spacing: 8) {
+                Text("套餐生效时间范围").font(.system(size: 11))
+                Spacer()
+                Text(model.planRangeText)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(model.plan == nil ? .secondary : .primary)
             }
 
             Divider()
