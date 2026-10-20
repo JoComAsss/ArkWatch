@@ -158,6 +158,16 @@ final class Preferences: ObservableObject {
     var settingsScale: Double { Double(settingsScalePercent) / 100 }
     var menuBarScale: Double { Double(menuBarScalePercent) / 100 }
 
+    /// 菜单栏百分比对应的窗口：daily / weekly / monthly
+    @Published var menuBarWindow: String {
+        didSet { UserDefaults.standard.set(menuBarWindow, forKey: "menuBarWindow") }
+    }
+
+    /// 弹窗显示内容：all / quota / usage
+    @Published var popoverSections: String {
+        didSet { UserDefaults.standard.set(popoverSections, forKey: "popoverSections") }
+    }
+
     /// system / light / dark
     @Published var appearanceMode: String {
         didSet { UserDefaults.standard.set(appearanceMode, forKey: "appearanceMode") }
@@ -185,6 +195,8 @@ final class Preferences: ObservableObject {
             menuBarScalePercent = legacyMenu >= 0.5 ? min(150, max(80, Int((legacyMenu * 100).rounded()))) : 100
         }
         appearanceMode = defaults.string(forKey: "appearanceMode") ?? "system"
+        menuBarWindow = defaults.string(forKey: "menuBarWindow") ?? "monthly"
+        popoverSections = defaults.string(forKey: "popoverSections") ?? "all"
     }
 }
 

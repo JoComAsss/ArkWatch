@@ -61,6 +61,14 @@ final class AppModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        prefs.$menuBarWindow
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.recomputeTitle()
+            }
+            .store(in: &cancellables)
+
         restartTimer()
         recomputeTitle()
         if activeAccount != nil { refresh(force: true) }
@@ -276,7 +284,8 @@ final class AppModel: ObservableObject {
             return
         }
 
-        let window = snapshot.window("monthly")
+        let window = snapshot.window(prefs.menuBarWindow)
+            ?? snapshot.window("monthly")
             ?? snapshot.window("weekly")
             ?? snapshot.windows.first
         guard let window, window.hasQuota else {
@@ -287,11 +296,11 @@ final class AppModel: ObservableObject {
 
         switch prefs.displayMode {
         case "usedPercent":
-            statusValue = String(format: "%.0f%%", window.ratio * 100)
+            statusValue = String(format: "%.1f%%", window.ratio * 100)
         case "remainingAFP":
             statusValue = Self.formatAFP(window.remaining)
         default:
-            statusValue = String(format: "%.0f%%", (1 - window.ratio) * 100)
+            statusValue = String(format: "%.1f%%", (1 - window.ratio) * 100)
         }
         statusLabel = displayLabel
         statusTitle = statusLabel + " " + statusValue

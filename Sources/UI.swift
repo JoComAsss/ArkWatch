@@ -80,6 +80,69 @@ struct CapsuleTag: View {
     }
 }
 
+/// 统一样式的设置下拉框：固定 150x22、文字居中、无系统下拉指示器
+struct SettingsSelect<Value: Hashable>: View {
+    let options: [(label: String, value: Value)]
+    @Binding var selection: Value
+    var width: CGFloat = 150
+
+    private var currentLabel: String {
+        options.first { $0.value == selection }?.label ?? options.first?.label ?? "-"
+    }
+
+    var body: some View {
+        Menu {
+            ForEach(options.indices, id: \.self) { index in
+                Button(options[index].label) { selection = options[index].value }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(currentLabel)
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 8)
+            .frame(width: width, height: 22)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.12)))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .frame(width: width, height: 22)
+    }
+}
+
+/// 合并「5 小时」与「今日」两条额度
+struct MergedWindowRow: View {
+    let fiveHour: AFPWindow
+    let daily: AFPWindow
+
+    private var ratio: Double { max(fiveHour.ratio, daily.ratio) }
+    private var binding: AFPWindow { fiveHour.ratio >= daily.ratio ? fiveHour : daily }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text("短期").font(.system(size: 11, weight: .semibold)).frame(width: 44, alignment: .leading)
+                Text("5 小时 / 今日")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                Text(String(format: "%.1f%%", ratio * 100))
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(ratio >= 0.9 ? .red : .primary)
+            }
+            ProgressLine(ratio: ratio)
+            Text("5 小时 \(AppModel.formatAFP(fiveHour.used))/\(AppModel.formatAFP(fiveHour.quota)) · 今日 \(AppModel.formatAFP(daily.used))/\(AppModel.formatAFP(daily.quota)) AFP")
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
 // MARK: - 主面板
 
 struct PopoverView: View {
@@ -100,10 +163,8 @@ struct PopoverView: View {
             Divider()
 
             if let snapshot = model.snapshot {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(snapshot.windows) { window in
-                        WindowRow(window: window)
-                    }
+                if prefs.popoverSections != "usage" {
+                    quotaSection(snapshot)
                 }
             } else if model.activeAccount == nil {
                 emptyState
@@ -128,7 +189,7 @@ struct PopoverView: View {
                     .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
             }
 
-            if !model.usageRows.isEmpty {
+            if prefs.popoverSections != "quota", !model.usageRows.isEmpty {
                 Divider()
                 usageSection
             }
@@ -204,6 +265,38 @@ struct PopoverView: View {
                 .controlSize(.small)
         }
         .padding(.vertical, 6)
+    }
+
+    private func quotaSection(_ snapshot: AFPSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text("使用余量统计").font(.system(size: 10, weight: .semibold))
+                Spacer()
+                ForEach([("今日", "daily"), ("本周", "weekly"), ("本月", "monthly")], id: \.1) { item in
+                    Button(item.0) { prefs.menuBarWindow = item.1 }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 9, weight: prefs.menuBarWindow == item.1 ? .semibold : .regular))
+                        .foregroundStyle(prefs.menuBarWindow == item.1 ? Color.accentColor : Color.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule().fill(prefs.menuBarWindow == item.1
+                                           ? Color.accentColor.opacity(0.16)
+                                           : Color.secondary.opacity(0.08))
+                        )
+                }
+            }
+
+            if let five = snapshot.window("fiveHour"), let day = snapshot.window("daily") {
+                MergedWindowRow(fiveHour: five, daily: day)
+            }
+            if let week = snapshot.window("weekly") {
+                WindowRow(window: week)
+            }
+            if let month = snapshot.window("monthly") {
+                WindowRow(window: month)
+            }
+        }
     }
 
     private var usageSection: some View {
@@ -439,7 +532,7 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-                .frame(width: 130, height: 22)
+                .frame(width: 150, height: 22)
             }
 
             HStack(spacing: 8) {
@@ -457,34 +550,22 @@ struct SettingsView: View {
             HStack {
                 Text("设置栏大小").font(.system(size: 11))
                 Spacer()
-                Picker("", selection: $prefs.settingsScalePercent) {
-                    ForEach(Array(stride(from: 80, through: 150, by: 5)), id: \.self) { value in
-                        Text("\(value)%").tag(value)
-                    }
-                }
-                .settingsPickerLayout()
+                SettingsSelect(options: stride(from: 80, through: 150, by: 5).map { ("\($0)%", $0) },
+                               selection: $prefs.settingsScalePercent)
             }
 
             HStack {
                 Text("菜单栏大小").font(.system(size: 11))
                 Spacer()
-                Picker("", selection: $prefs.menuBarScalePercent) {
-                    ForEach(Array(stride(from: 80, through: 150, by: 5)), id: \.self) { value in
-                        Text("\(value)%").tag(value)
-                    }
-                }
-                .settingsPickerLayout()
+                SettingsSelect(options: stride(from: 80, through: 150, by: 5).map { ("\($0)%", $0) },
+                               selection: $prefs.menuBarScalePercent)
             }
 
             HStack {
                 Text("整体外观").font(.system(size: 11))
                 Spacer()
-                Picker("", selection: $prefs.appearanceMode) {
-                    Text("跟随系统").tag("system")
-                    Text("浅色").tag("light")
-                    Text("深色").tag("dark")
-                }
-                .settingsPickerLayout()
+                SettingsSelect(options: [("跟随系统", "system"), ("浅色", "light"), ("深色", "dark")],
+                               selection: $prefs.appearanceMode)
             }
 
             Divider()
@@ -494,24 +575,22 @@ struct SettingsView: View {
             HStack {
                 Text("刷新间隔").font(.system(size: 11))
                 Spacer()
-                Picker("", selection: $prefs.refreshSeconds) {
-                    Text("30 秒").tag(30)
-                    Text("60 秒").tag(60)
-                    Text("2 分钟").tag(120)
-                    Text("5 分钟").tag(300)
-                }
-                .settingsPickerLayout()
+                SettingsSelect(options: [("30 秒", 30), ("60 秒", 60), ("2 分钟", 120), ("5 分钟", 300)],
+                               selection: $prefs.refreshSeconds)
             }
 
             HStack {
                 Text("菜单栏显示").font(.system(size: 11))
                 Spacer()
-                Picker("", selection: $prefs.displayMode) {
-                    Text("剩余 %").tag("remainingPercent")
-                    Text("已用 %").tag("usedPercent")
-                    Text("剩余 AFP").tag("remainingAFP")
-                }
-                .settingsPickerLayout()
+                SettingsSelect(options: [("剩余 %", "remainingPercent"), ("已用 %", "usedPercent"), ("剩余 AFP", "remainingAFP")],
+                               selection: $prefs.displayMode)
+            }
+
+            HStack {
+                Text("菜单栏选项").font(.system(size: 11))
+                Spacer()
+                SettingsSelect(options: [("余量 + 模型用量", "all"), ("仅余量统计", "quota"), ("仅模型用量", "usage")],
+                               selection: $prefs.popoverSections)
             }
 
             Toggle("开机自动启动", isOn: $prefs.launchAtLogin)
