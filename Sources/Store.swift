@@ -145,15 +145,18 @@ final class Preferences: ObservableObject {
         }
     }
 
-    /// 设置窗口缩放（0.8 ~ 1.5）
-    @Published var settingsScale: Double {
-        didSet { UserDefaults.standard.set(settingsScale, forKey: "settingsScale") }
+    /// 设置窗口缩放百分比（80 ~ 150）
+    @Published var settingsScalePercent: Int {
+        didSet { UserDefaults.standard.set(settingsScalePercent, forKey: "settingsScalePercent") }
     }
 
-    /// 菜单栏字号缩放（0.8 ~ 1.5）
-    @Published var menuBarScale: Double {
-        didSet { UserDefaults.standard.set(menuBarScale, forKey: "menuBarScale") }
+    /// 菜单栏字号缩放百分比（80 ~ 150）
+    @Published var menuBarScalePercent: Int {
+        didSet { UserDefaults.standard.set(menuBarScalePercent, forKey: "menuBarScalePercent") }
     }
+
+    var settingsScale: Double { Double(settingsScalePercent) / 100 }
+    var menuBarScale: Double { Double(menuBarScalePercent) / 100 }
 
     /// system / light / dark
     @Published var appearanceMode: String {
@@ -166,10 +169,21 @@ final class Preferences: ObservableObject {
         refreshSeconds = storedRefresh >= 15 ? storedRefresh : 60
         displayMode = defaults.string(forKey: "displayMode") ?? "remainingPercent"
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
-        let storedSettingsScale = defaults.double(forKey: "settingsScale")
-        settingsScale = storedSettingsScale >= 0.5 ? storedSettingsScale : 1.0
-        let storedMenuScale = defaults.double(forKey: "menuBarScale")
-        menuBarScale = storedMenuScale >= 0.5 ? storedMenuScale : 1.0
+        // 兼容旧版本的 Double 键，统一转成百分比整数
+        let storedSettingsPercent = defaults.integer(forKey: "settingsScalePercent")
+        if storedSettingsPercent > 0 {
+            settingsScalePercent = min(150, max(80, storedSettingsPercent))
+        } else {
+            let legacy = defaults.double(forKey: "settingsScale")
+            settingsScalePercent = legacy >= 0.5 ? min(150, max(80, Int((legacy * 100).rounded()))) : 100
+        }
+        let storedMenuPercent = defaults.integer(forKey: "menuBarScalePercent")
+        if storedMenuPercent > 0 {
+            menuBarScalePercent = min(150, max(80, storedMenuPercent))
+        } else {
+            let legacyMenu = defaults.double(forKey: "menuBarScale")
+            menuBarScalePercent = legacyMenu >= 0.5 ? min(150, max(80, Int((legacyMenu * 100).rounded()))) : 100
+        }
         appearanceMode = defaults.string(forKey: "appearanceMode") ?? "system"
     }
 }

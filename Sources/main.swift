@@ -42,14 +42,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] _, _ in self?.updateStatusItem() }
             .store(in: &cancellables)
 
-        model.prefs.$menuBarScale
+        model.prefs.$menuBarScalePercent
             .receive(on: RunLoop.main)
-            .sink { [weak self] scale in self?.updateStatusItem(scale: scale) }
+            .sink { [weak self] percent in self?.updateStatusItem(scale: Double(percent) / 100) }
             .store(in: &cancellables)
 
-        model.prefs.$settingsScale
+        model.prefs.$settingsScalePercent
             .receive(on: RunLoop.main)
-            .sink { [weak self] scale in self?.resizeSettingsWindow(scale: scale) }
+            .sink { [weak self] percent in self?.resizeSettingsWindow(scale: Double(percent) / 100) }
             .store(in: &cancellables)
 
         model.prefs.$appearanceMode

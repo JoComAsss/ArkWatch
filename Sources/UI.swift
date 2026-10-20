@@ -446,21 +446,23 @@ struct SettingsView: View {
             HStack {
                 Text("设置栏大小").font(.system(size: 11))
                 Spacer()
-                Slider(value: $prefs.settingsScale, in: 0.8...1.5, step: 0.05)
-                    .frame(width: 130)
-                Text("\(Int(prefs.settingsScale * 100))%")
-                    .font(.system(size: 10, design: .monospaced))
-                    .frame(width: 38, alignment: .trailing)
+                Picker("", selection: $prefs.settingsScalePercent) {
+                    ForEach(Array(stride(from: 80, through: 150, by: 5)), id: \.self) { value in
+                        Text("\(value)%").tag(value)
+                    }
+                }
+                .settingsPickerLayout()
             }
 
             HStack {
                 Text("菜单栏大小").font(.system(size: 11))
                 Spacer()
-                Slider(value: $prefs.menuBarScale, in: 0.8...1.5, step: 0.05)
-                    .frame(width: 130)
-                Text("\(Int(prefs.menuBarScale * 100))%")
-                    .font(.system(size: 10, design: .monospaced))
-                    .frame(width: 38, alignment: .trailing)
+                Picker("", selection: $prefs.menuBarScalePercent) {
+                    ForEach(Array(stride(from: 80, through: 150, by: 5)), id: \.self) { value in
+                        Text("\(value)%").tag(value)
+                    }
+                }
+                .settingsPickerLayout()
             }
 
             HStack {
@@ -471,8 +473,7 @@ struct SettingsView: View {
                     Text("浅色").tag("light")
                     Text("深色").tag("dark")
                 }
-                .labelsHidden()
-                .frame(width: 130, alignment: .trailing)
+                .settingsPickerLayout()
             }
 
             Divider()
@@ -488,8 +489,7 @@ struct SettingsView: View {
                     Text("2 分钟").tag(120)
                     Text("5 分钟").tag(300)
                 }
-                .labelsHidden()
-                .frame(width: 130, alignment: .trailing)
+                .settingsPickerLayout()
             }
 
             HStack {
@@ -500,8 +500,7 @@ struct SettingsView: View {
                     Text("已用 %").tag("usedPercent")
                     Text("剩余 AFP").tag("remainingAFP")
                 }
-                .labelsHidden()
-                .frame(width: 130, alignment: .trailing)
+                .settingsPickerLayout()
             }
 
             Toggle("开机自动启动", isOn: $prefs.launchAtLogin)
@@ -602,6 +601,14 @@ struct SettingsView: View {
         }
         .padding(16)
         .frame(width: 400)
+    }
+}
+
+extension View {
+    /// 所有设置项下拉框统一样式：隐藏标签、固定 130pt、右对齐
+    func settingsPickerLayout() -> some View {
+        self.labelsHidden()
+            .frame(width: 130, alignment: .trailing)
     }
 }
 
