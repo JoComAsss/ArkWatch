@@ -436,7 +436,8 @@ struct SettingsView: View {
                 }
                 Spacer()
                 Button("查看全部套餐") { openPlans() }
-                    .controlSize(.small)
+                    .controlSize(.regular)
+                    .frame(width: 130, height: 22)
             }
 
             Divider()

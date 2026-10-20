@@ -18,6 +18,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var statusTitle: String = "Ark"
+    /// 正在检测套餐开通状态
+    @Published private(set) var isCheckingPlan = false
     /// 菜单栏小字说明（剩余 / 已用 / 剩余 AFP），为空时不显示
     @Published private(set) var statusLabel: String = ""
     /// 菜单栏主数值
@@ -61,6 +63,30 @@ final class AppModel: ObservableObject {
         restartTimer()
         recomputeTitle()
         if activeAccount != nil { refresh(force: true) }
+    }
+
+    // MARK: 套餐检测
+
+    /// 打开套餐页时主动检测一次开通状态
+    func detectPlan() {
+        guard !isCheckingPlan else { return }
+        guard let account = activeAccount, !account.ak.isEmpty,
+              let sk = store.secretKey(for: account), !sk.isEmpty else {
+            isCheckingPlan = false
+            return
+        }
+        isCheckingPlan = true
+        let client = ArkClient(ak: account.ak, sk: sk)
+        Task { [weak self] in
+            var info: PlanInfo?
+            do { info = try await client.fetchActivePlan() } catch { info = nil }
+            await MainActor.run {
+                guard let self else { return }
+                if let info { self.plan = info }
+                self.isCheckingPlan = false
+                self.recomputeTitle()
+            }
+        }
     }
 
     // MARK: 套餐

@@ -67,11 +67,21 @@ struct PlansView: View {
         }
         .padding(16)
         .frame(width: 500)
+        .onAppear { model.detectPlan() }
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text("全部套餐").font(.system(size: 14, weight: .semibold))
+            if model.isCheckingPlan {
+                chip("检测中", color: Color(red: 0.78, green: 0.60, blue: 0.05))
+            } else if model.plan != nil {
+                chip("已开通", color: .green)
+            } else if model.activeAccount == nil {
+                chip("未绑定账号", color: .secondary)
+            } else {
+                chip("未开通", color: .red)
+            }
             Spacer()
         }
     }
@@ -95,13 +105,14 @@ struct PlansView: View {
         return HStack(spacing: 10) {
             // 红绿灯：绿色 = 已开通，灰色 = 未开通
             Circle()
-                .fill(isLive ? Color.green : Color.secondary.opacity(0.28))
+                .fill(isLive ? Color.green : Color.red.opacity(0.85))
                 .frame(width: 8, height: 8)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(tier.name).font(.system(size: 12, weight: .semibold))
                     if isLive { chip("已开通", color: .green) }
+                    if !isLive { chip("未开通", color: .red) }
                     if isSelected && !isLive { chip("查看中", color: .accentColor) }
                     if tier.video { chip("含视频生成", color: .secondary) }
                 }
