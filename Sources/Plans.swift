@@ -26,6 +26,13 @@ enum PlanCatalog {
                  detail: "月 500,000 · 周 175,000 · 5 小时 50,000 AFP", video: true)
     ]
 
+    static var allTiers: [PlanTier] { agentTiers + codingTiers }
+
+    static func tier(id: String?) -> PlanTier? {
+        guard let id else { return nil }
+        return allTiers.first { $0.id == id }
+    }
+
     static let codingTiers: [PlanTier] = [
         PlanTier(id: "coding-lite", family: "CodingPlan", name: "Lite", price: "以控制台为准",
                  detail: "按 5 小时 / 周窗口限流，额度见控制台", video: false),
@@ -64,12 +71,8 @@ struct PlansView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("套餐").font(.system(size: 14, weight: .semibold))
+            Text("全部套餐").font(.system(size: 14, weight: .semibold))
             Spacer()
-            if let account = model.activeAccount {
-                Text(account.name).font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 
@@ -86,41 +89,51 @@ struct PlansView: View {
     }
 
     private func row(_ tier: PlanTier) -> some View {
-        let isCurrent = !currentType.isEmpty
-            && tier.name == currentType
-            && tier.family == currentFamily
+        let isLive = tier.id == model.livePlanID
+        let isSelected = tier.id == (model.selectedPlanID ?? model.livePlanID)
 
-        return Button(action: openConsole) {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(tier.name).font(.system(size: 12, weight: .semibold))
-                        if isCurrent { chip("当前", color: .accentColor) }
-                        if tier.video { chip("含视频生成", color: .secondary) }
-                    }
-                    Text(tier.detail)
-                        .font(.system(size: 9))
-                        .foregroundStyle(.secondary)
+        return HStack(spacing: 10) {
+            // 红绿灯：绿色 = 已开通，灰色 = 未开通
+            Circle()
+                .fill(isLive ? Color.green : Color.secondary.opacity(0.28))
+                .frame(width: 8, height: 8)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(tier.name).font(.system(size: 12, weight: .semibold))
+                    if isLive { chip("已开通", color: .green) }
+                    if isSelected && !isLive { chip("查看中", color: .accentColor) }
+                    if tier.video { chip("含视频生成", color: .secondary) }
                 }
-                Spacer()
-                Text(tier.price)
-                    .font(.system(size: 10, design: .monospaced))
+                Text(tier.detail)
+                    .font(.system(size: 9))
                     .foregroundStyle(.secondary)
-                Image(systemName: "arrow.up.right.square")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 10)
-            .background(isCurrent ? Color.accentColor.opacity(0.10) : Color.secondary.opacity(0.06),
-                        in: RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isCurrent ? Color.accentColor.opacity(0.45) : Color.clear, lineWidth: 1)
-            )
+
+            Spacer()
+
+            Text(tier.price)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundStyle(.secondary)
+
+            if !(isLive && isSelected) {
+                Button("切换") {
+                    model.selectedPlanID = tier.id
+                }
+                .controlSize(.small)
+            }
+
+            Button("开通") { openConsole() }
+                .controlSize(.small)
         }
-        .buttonStyle(.plain)
-        .help("在火山方舟控制台打开套餐页面")
+        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .background(isSelected ? Color.accentColor.opacity(0.08) : Color.secondary.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isSelected ? Color.accentColor.opacity(0.45) : Color.clear, lineWidth: 1)
+        )
     }
 
     private func chip(_ text: String, color: Color) -> some View {
@@ -134,11 +147,11 @@ struct PlansView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("点击任意套餐会在浏览器打开火山方舟控制台的开通管理页，可查看额度、升级或续费。")
+            Text("点「开通」会在浏览器打开火山方舟控制台的开通管理页，可查看额度、购买或续费。")
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("说明：接口只能读取当前账号已购买的那一档，其他档位无法查询用量，因此这里只做展示与跳转。")
+            Text("说明：接口只能读取已购买的那一档。「切换」仅切换本机查看对象，不会改变实际订阅；真正变更套餐请在控制台购买或升配。")
                 .font(.system(size: 9))
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)

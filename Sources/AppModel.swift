@@ -23,6 +23,14 @@ final class AppModel: ObservableObject {
     /// 菜单栏主数值
     @Published private(set) var statusValue: String = "⚙"
 
+    /// 本机查看的套餐（不改变实际订阅）
+    @Published var selectedPlanID: String? {
+        didSet {
+            UserDefaults.standard.set(selectedPlanID, forKey: "selectedPlanID")
+            recomputeTitle()
+        }
+    }
+
     let store = AccountStore()
     let prefs = Preferences.shared
     private var timer: Timer?
@@ -34,6 +42,7 @@ final class AppModel: ObservableObject {
 
     init() {
         accounts = store.accounts
+        selectedPlanID = UserDefaults.standard.string(forKey: "selectedPlanID")
         let saved = UserDefaults.standard.string(forKey: "activeAccountID")
         activeID = accounts.contains(where: { $0.id == saved }) ? saved : accounts.first?.id
 
@@ -52,6 +61,31 @@ final class AppModel: ObservableObject {
         restartTimer()
         recomputeTitle()
         if activeAccount != nil { refresh(force: true) }
+    }
+
+    // MARK: 套餐
+
+    /// 实际已开通的套餐（来自接口）
+    var livePlanID: String? {
+        guard let plan else { return nil }
+        let prefix = plan.plan == "CodingPlan" ? "coding" : "agent"
+        return "\(prefix)-\(plan.planType.lowercased())"
+    }
+
+    var selectedTier: PlanTier? {
+        PlanCatalog.tier(id: selectedPlanID ?? livePlanID)
+    }
+
+    /// 面板/设置里展示的套餐名
+    var selectedPlanLabel: String {
+        guard plan != nil || selectedPlanID != nil else { return "未绑定" }
+        if let tier = selectedTier {
+            return "\(tier.family == "CodingPlan" ? "Coding" : "Agent") \(tier.name)"
+        }
+        if let plan {
+            return "\(plan.plan == "CodingPlan" ? "Coding" : "Agent") \(plan.planType)"
+        }
+        return "未绑定"
     }
 
     // MARK: 账号管理

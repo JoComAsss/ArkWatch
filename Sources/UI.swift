@@ -90,8 +90,8 @@ struct PopoverView: View {
     var quit: () -> Void
 
     var planBadge: String {
-        guard let plan = model.plan else { return "未登录" }
-        return "\(plan.plan == "CodingPlan" ? "Coding" : "Agent") \(plan.planType)"
+        guard model.activeAccount != nil else { return "未登录" }
+        return model.selectedPlanLabel
     }
 
     var body: some View {
@@ -414,8 +414,8 @@ struct SettingsView: View {
 
             HStack(spacing: 8) {
                 Text("套餐").font(.system(size: 13, weight: .semibold))
-                if let plan = model.plan {
-                    CapsuleTag(text: "当前：\(plan.plan == "CodingPlan" ? "Coding" : "Agent") \(plan.planType)")
+                if model.activeAccount != nil {
+                    CapsuleTag(text: "当前：\(model.selectedPlanLabel)")
                 }
                 Spacer()
             }
