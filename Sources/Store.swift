@@ -177,7 +177,10 @@ final class Preferences: ObservableObject {
         let defaults = UserDefaults.standard
         let storedRefresh = defaults.integer(forKey: "refreshSeconds")
         refreshSeconds = storedRefresh >= 15 ? storedRefresh : 60
-        displayMode = defaults.string(forKey: "displayMode") ?? "remainingPercent"
+        let storedMode = defaults.string(forKey: "displayMode") ?? "remainingPercent"
+        // 归一化历史/异常取值，避免落入 default 分支与选择框显示不一致
+        let validModes = ["remainingPercent", "usedPercent", "remainingAFP"]
+        displayMode = validModes.contains(storedMode) ? storedMode : "remainingPercent"
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         // 兼容旧版本的 Double 键，统一转成百分比整数
         let storedSettingsPercent = defaults.integer(forKey: "settingsScalePercent")

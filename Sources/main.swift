@@ -253,8 +253,25 @@ if arguments.contains("--help") {
     exit(0)
 }
 
+if arguments.contains("--mode-check") { runModeCheckAndExit() }
 if let idx = arguments.firstIndex(of: "--render"), idx + 1 < arguments.count {
     runRenderAndExit(path: arguments[idx + 1], demo: arguments.contains("--demo"))
+}
+
+func runModeCheckAndExit() -> Never {
+    let model = AppModel()
+    model.loadDemoData()
+    func dump(_ tag: String) {
+        print("\(tag): label=\(model.statusLabel) value=\(model.statusValue)")
+    }
+    model.prefs.menuBarWindow = "monthly"
+    model.prefs.displayMode = "usedPercent"
+    RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+    dump("usedPercent   (期望 47.4%)")
+    model.prefs.displayMode = "remainingPercent"
+    RunLoop.main.run(until: Date().addingTimeInterval(0.4))
+    dump("remainingPct  (期望 52.6%)")
+    exit(0)
 }
 
 func runRenderAndExit(path: String, demo: Bool) -> Never {

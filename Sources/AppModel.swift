@@ -83,6 +83,7 @@ final class AppModel: ObservableObject {
 
     /// 套餐生效时间范围，未开通返回「无」
     var planRangeText: String {
+        guard isSelectedPlanOpened else { return "无" }
         guard let plan, let start = plan.startTime, let end = plan.endTime,
               start.count >= 10, end.count >= 10 else { return "无" }
         return "\(String(start.prefix(10))) ~ \(String(end.prefix(10)))"
@@ -299,6 +300,8 @@ final class AppModel: ObservableObject {
             statusValue = String(format: "%.1f%%", window.ratio * 100)
         case "remainingAFP":
             statusValue = Self.formatAFP(window.remaining)
+        case "remainingPercent":
+            statusValue = String(format: "%.1f%%", (1 - window.ratio) * 100)
         default:
             statusValue = String(format: "%.1f%%", (1 - window.ratio) * 100)
         }

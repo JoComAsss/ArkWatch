@@ -28,6 +28,7 @@ struct ProgressLine: View {
 
 struct WindowRow: View {
     let window: AFPWindow
+    var showReset: Bool = true
 
     var resetText: String {
         guard let reset = window.resetTime else { return "" }
@@ -55,7 +56,7 @@ struct WindowRow: View {
                     .foregroundStyle(window.ratio >= 0.9 ? .red : .primary)
             }
             ProgressLine(ratio: window.ratio)
-            if !resetText.isEmpty {
+            if showReset && !resetText.isEmpty {
                 Text(resetText)
                     .font(.system(size: 9))
                     .foregroundStyle(.tertiary)
@@ -112,34 +113,6 @@ struct SettingsSelect<Value: Hashable>: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .frame(width: width, height: 22)
-    }
-}
-
-/// 合并「5 小时」与「今日」两条额度
-struct MergedWindowRow: View {
-    let fiveHour: AFPWindow
-    let daily: AFPWindow
-
-    private var ratio: Double { max(fiveHour.ratio, daily.ratio) }
-    private var binding: AFPWindow { fiveHour.ratio >= daily.ratio ? fiveHour : daily }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text("短期").font(.system(size: 11, weight: .semibold)).frame(width: 44, alignment: .leading)
-                Text("5 小时 / 今日")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
-                Spacer()
-                Text(String(format: "%.1f%%", ratio * 100))
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(ratio >= 0.9 ? .red : .primary)
-            }
-            ProgressLine(ratio: ratio)
-            Text("5 小时 \(AppModel.formatAFP(fiveHour.used))/\(AppModel.formatAFP(fiveHour.quota)) · 今日 \(AppModel.formatAFP(daily.used))/\(AppModel.formatAFP(daily.quota)) AFP")
-                .font(.system(size: 9, design: .monospaced))
-                .foregroundStyle(.secondary)
-        }
     }
 }
 
@@ -287,14 +260,14 @@ struct PopoverView: View {
                 }
             }
 
-            if let five = snapshot.window("fiveHour"), let day = snapshot.window("daily") {
-                MergedWindowRow(fiveHour: five, daily: day)
+            if let day = snapshot.window("daily") {
+                WindowRow(window: day, showReset: true)
             }
             if let week = snapshot.window("weekly") {
-                WindowRow(window: week)
+                WindowRow(window: week, showReset: false)
             }
             if let month = snapshot.window("monthly") {
-                WindowRow(window: month)
+                WindowRow(window: month, showReset: false)
             }
         }
     }
@@ -526,13 +499,18 @@ struct SettingsView: View {
                     openPlans()
                 } label: {
                     HStack(spacing: 4) {
-                        Text("展开").font(.system(size: 11))
-                        Image(systemName: "chevron.down").font(.system(size: 8))
+                        Text("展开")
+                            .font(.system(size: 11))
+                            .frame(maxWidth: .infinity)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8))
+                            .foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 8)
+                    .frame(width: 150, height: 22)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.12)))
                 }
-                .buttonStyle(.bordered)
-                .frame(width: 150, height: 22)
+                .buttonStyle(.plain)
             }
 
             HStack(spacing: 8) {
