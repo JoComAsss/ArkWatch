@@ -15,6 +15,9 @@ struct PlanTier: Identifiable {
 enum PlanCatalog {
     static let consoleURL = URL(string: "https://ark.volcengine.com/region:cn-beijing/openManagement?LLM=%7B%7D&advancedActiveKey=agentPlan")!
 
+    /// 官方 Agent Plan 订阅页（面板进度条点击跳转）
+    static let subscriptionURL = URL(string: "https://console.volcengine.com/ark/region:cn-beijing/subscription/agent-plan")!
+
     static let agentTiers: [PlanTier] = [
         PlanTier(id: "agent-small", family: "AgentPlan", name: "Small", price: "¥40 / 月",
                  detail: "月 20,000 · 周 7,000 · 5 小时 2,000 AFP", video: false),

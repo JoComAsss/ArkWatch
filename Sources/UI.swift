@@ -41,27 +41,53 @@ struct WindowRow: View {
         return "\(minutes) 分钟后重置"
     }
 
+    private var barColor: Color {
+        if window.ratio >= 0.9 { return .red }
+        if window.ratio >= 0.7 { return .orange }
+        return Color(red: 0.18, green: 0.62, blue: 0.36)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(window.title)
-                    .font(.system(size: 11, weight: .semibold))
-                    .frame(width: 44, alignment: .leading)
-                Text("\(AppModel.formatAFP(window.used)) / \(AppModel.formatAFP(window.quota)) AFP")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(window.percentText)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(window.ratio >= 0.9 ? .red : .primary)
+        Button {
+            NSWorkspace.shared.open(PlanCatalog.subscriptionURL)
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(window.title)
+                        .font(.system(size: 11, weight: .semibold))
+                    Spacer()
+                    Text("已用 \(AppModel.formatAFP(window.used)) / \(AppModel.formatAFP(window.quota)) AFP")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    Text(String(format: "%.1f%%", window.ratio * 100))
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(window.ratio >= 0.9 ? Color.red : Color.primary)
+                        .frame(width: 52, alignment: .trailing)
+                }
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.secondary.opacity(0.16))
+                        Capsule()
+                            .fill(LinearGradient(colors: [barColor.opacity(0.85), barColor],
+                                                 startPoint: .leading, endPoint: .trailing))
+                            .frame(width: max(3, geo.size.width * CGFloat(window.ratio)))
+                    }
+                }
+                .frame(height: 8)
+
+                if showReset && !resetText.isEmpty {
+                    Text(resetText)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.tertiary)
+                }
             }
-            ProgressLine(ratio: window.ratio)
-            if showReset && !resetText.isEmpty {
-                Text(resetText)
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
-            }
+            .padding(.vertical, 7)
+            .padding(.horizontal, 9)
+            .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
         }
+        .buttonStyle(.plain)
+        .help("打开火山方舟 Agent Plan 订阅页")
     }
 }
 
@@ -108,7 +134,14 @@ struct SettingsSelect<Value: Hashable>: View {
             }
             .padding(.horizontal, 8)
             .frame(width: width, height: 22)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.12)))
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.secondary.opacity(0.38), lineWidth: 1)
+            )
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
@@ -508,7 +541,8 @@ struct SettingsView: View {
                     }
                     .padding(.horizontal, 8)
                     .frame(width: 150, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(Color.secondary.opacity(0.12)))
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.38), lineWidth: 1))
                 }
                 .buttonStyle(.plain)
             }
