@@ -71,10 +71,10 @@ struct CapsuleTag: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 9, weight: .medium))
+            .font(.system(size: 12, weight: .medium))
             .lineLimit(1)
-            .padding(.horizontal, 7)
-            .frame(height: 17)
+            .padding(.horizontal, 8)
+            .frame(height: 20)
             .foregroundStyle(color)
             .background(color.opacity(0.12), in: Capsule())
     }
@@ -178,7 +178,7 @@ struct PopoverView: View {
                 model.refresh(force: true)
             } label: {
                 Image(systemName: model.isLoading ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
-                    .font(.system(size: 11))
+                    .font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.borderless)
             .help("立即刷新")
@@ -186,7 +186,7 @@ struct PopoverView: View {
             Button {
                 openSettings()
             } label: {
-                Image(systemName: "gearshape").font(.system(size: 11))
+                Image(systemName: "gearshape").font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.borderless)
             .help("设置")
@@ -412,12 +412,12 @@ struct SettingsView: View {
 
             Divider()
 
-            HStack {
+            HStack(spacing: 8) {
                 Text("套餐").font(.system(size: 13, weight: .semibold))
-                Spacer()
                 if let plan = model.plan {
                     CapsuleTag(text: "\(plan.plan == "CodingPlan" ? "Coding" : "Agent") \(plan.planType)")
                 }
+                Spacer()
             }
 
             HStack(spacing: 8) {
@@ -453,7 +453,7 @@ struct SettingsView: View {
                     Text("5 分钟").tag(300)
                 }
                 .labelsHidden()
-                .frame(width: 110)
+                .frame(width: 130)
             }
 
             HStack {
@@ -465,7 +465,7 @@ struct SettingsView: View {
                     Text("剩余 AFP").tag("remainingAFP")
                 }
                 .labelsHidden()
-                .frame(width: 110)
+                .frame(width: 130)
             }
 
             Toggle("开机自动启动", isOn: $prefs.launchAtLogin)

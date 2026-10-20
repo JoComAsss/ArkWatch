@@ -66,29 +66,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.toolTip = tooltip()
     }
 
-    /// 菜单栏标题：空标签时单行；否则左上角小字说明 + 下方数值
+    /// 菜单栏标题：蓝色小字说明以上标形式放在数值左上角，数值放大
     static func makeStatusTitle(label: String, value: String) -> NSAttributedString {
-        if label.isEmpty {
-            return NSAttributedString(string: value, attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
-                .foregroundColor: NSColor.labelColor
-            ])
+        let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+        let result = NSMutableAttributedString()
+
+        if !label.isEmpty {
+            result.append(NSAttributedString(string: label, attributes: [
+                .font: NSFont.systemFont(ofSize: 8, weight: .semibold),
+                .foregroundColor: NSColor.systemBlue,
+                .baselineOffset: 6
+            ]))
+            result.append(NSAttributedString(string: " ", attributes: [
+                .font: NSFont.systemFont(ofSize: 6)
+            ]))
         }
-        let para = NSMutableParagraphStyle()
-        para.alignment = .left
-        para.minimumLineHeight = 9
-        para.maximumLineHeight = 9
-        let attr = NSMutableAttributedString(string: label, attributes: [
-            .font: NSFont.systemFont(ofSize: 8, weight: .regular),
-            .foregroundColor: NSColor.secondaryLabelColor,
-            .paragraphStyle: para
-        ])
-        attr.append(NSAttributedString(string: "\n" + value, attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
-            .foregroundColor: NSColor.labelColor,
-            .paragraphStyle: para
+
+        result.append(NSAttributedString(string: value, attributes: [
+            .font: valueFont,
+            .foregroundColor: NSColor.labelColor
         ]))
-        return attr
+        return result
     }
 
     private func tooltip() -> String {

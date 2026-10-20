@@ -41,6 +41,8 @@ final class AppModel: ObservableObject {
             .sink { [weak self] _ in self?.restartTimer() }
             .store(in: &cancellables)
         prefs.$displayMode
+            // @Published 在 willSet 阶段发事件，切到主队列下一轮再读新值
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.recomputeTitle()
