@@ -18,6 +18,30 @@ macOS 菜单栏上的火山方舟（Volcengine Ark）用量监控，原生 Swift
 - **开机自启**：通过 LaunchAgent 实现，无需开发者证书。
 - **命令行工具**：`--selftest` 校验签名实现，`--probe` 直接打印用量（便于排障）。
 
+## 安装（未签名发行版）
+
+1. 从 [Releases](https://github.com/JoComAsss/ArkWatch/releases) 下载 `ArkWatch-<版本>-macos-universal.zip`
+2. 解压后把 `ArkWatch.app` 拖进「应用程序」
+3. 首次打开：**右键 →「打开」→ 再点「打开」**；或终端执行：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/ArkWatch.app
+```
+
+4. 菜单栏出现 `Ark ⚙` 即启动成功（无 Dock 图标）
+
+> 本版本未做 Apple 公证（需 $99/年 开发者账号），首次打开会被 Gatekeeper 拦截一次，属正常现象。
+> 支持 macOS 13+，Universal 二进制（Apple Silicon / Intel 均可）。
+
+## 从源码构建
+
+```bash
+git clone https://github.com/JoComAsss/ArkWatch.git
+cd ArkWatch
+./build.sh          # 生成 dist/ArkWatch.app（Universal）
+./release.sh 1.0.0  # 可选：生成发布 zip + SHA256
+```
+
 ## 快速开始
 
 ```bash

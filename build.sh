@@ -10,11 +10,20 @@ echo "==> 清理"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-echo "==> 编译"
-swiftc -swift-version 5 -O \
-  -framework AppKit -framework SwiftUI -framework CryptoKit -framework Security \
-  "$ROOT/Sources/"*.swift \
-  -o "$BIN"
+echo "==> 编译（Universal：arm64 + x86_64）"
+TMPDIR_BUILD="$(mktemp -d)"
+trap 'rm -rf "$TMPDIR_BUILD"' EXIT
+ARCH_BINS=()
+for ARCH in arm64 x86_64; do
+  echo "    - $ARCH"
+  swiftc -swift-version 5 -O -target "${ARCH}-apple-macos13.0" \
+    -framework AppKit -framework SwiftUI -framework CryptoKit -framework Security \
+    "$ROOT/Sources/"*.swift \
+    -o "$TMPDIR_BUILD/ArkWatch-$ARCH" 2>&1 | grep -E "error:" && exit 1 || true
+  ARCH_BINS+=("$TMPDIR_BUILD/ArkWatch-$ARCH")
+done
+lipo -create "${ARCH_BINS[@]}" -output "$BIN"
+echo "    架构：$(lipo -archs "$BIN")"
 
 echo "==> 生成图标"
 if [ -f "$ROOT/tools/make-icon.swift" ]; then
