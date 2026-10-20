@@ -302,9 +302,9 @@ struct PopoverView: View {
     private func quotaSection(_ snapshot: AFPSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
-                Text("使用余量统计").font(.system(size: 10, weight: .semibold))
+                Text("燃料值(AFP)用量").font(.system(size: 10, weight: .semibold))
                 Spacer()
-                ForEach([("今日", "daily"), ("本周", "weekly"), ("本月", "monthly")], id: \.1) { item in
+                ForEach([("5 小时", "fiveHour"), ("一周", "weekly"), ("一月", "monthly")], id: \.1) { item in
                     Button(item.0) { prefs.menuBarWindow = item.1 }
                         .buttonStyle(.plain)
                         .font(.system(size: 9, weight: prefs.menuBarWindow == item.1 ? .semibold : .regular))
@@ -319,8 +319,8 @@ struct PopoverView: View {
                 }
             }
 
-            if let day = snapshot.window("daily") {
-                WindowRow(window: day, showReset: true)
+            if let five = snapshot.window("fiveHour") {
+                WindowRow(window: five, showReset: true)
             }
             if let week = snapshot.window("weekly") {
                 WindowRow(window: week, showReset: false)

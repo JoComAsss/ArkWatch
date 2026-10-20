@@ -198,7 +198,9 @@ final class Preferences: ObservableObject {
             menuBarScalePercent = legacyMenu >= 0.5 ? min(150, max(80, Int((legacyMenu * 100).rounded()))) : 100
         }
         appearanceMode = defaults.string(forKey: "appearanceMode") ?? "system"
-        menuBarWindow = defaults.string(forKey: "menuBarWindow") ?? "monthly"
+        let storedWindow = defaults.string(forKey: "menuBarWindow") ?? "monthly"
+        let validWindows = ["fiveHour", "weekly", "monthly"]
+        menuBarWindow = validWindows.contains(storedWindow) ? storedWindow : "monthly"
         popoverSections = defaults.string(forKey: "popoverSections") ?? "all"
     }
 }

@@ -130,10 +130,10 @@ final class ArkClient {
         }
 
         var windows: [AFPWindow] = []
-        if let w = parse("AFPFiveHour", "5 小时", "fiveHour") { windows.append(w) }
+        if let w = parse("AFPFiveHour", "近 5 小时", "fiveHour") { windows.append(w) }
         if let w = parse("AFPDaily", "今日", "daily") { windows.append(w) }
-        if let w = parse("AFPWeekly", "本周", "weekly") { windows.append(w) }
-        if let w = parse("AFPMonthly", "本月", "monthly") { windows.append(w) }
+        if let w = parse("AFPWeekly", "近一周", "weekly") { windows.append(w) }
+        if let w = parse("AFPMonthly", "近一月", "monthly") { windows.append(w) }
         guard !windows.isEmpty else { throw ArkError.badPayload("GetAFPUsage 未返回 AFPF* 字段") }
 
         let planType = (res["PlanType"] as? String)

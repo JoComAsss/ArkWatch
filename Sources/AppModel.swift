@@ -325,13 +325,13 @@ final class AppModel: ObservableObject {
     func loadDemoData() {
         let now = Date()
         snapshot = AFPSnapshot(planType: "Small", windows: [
-            AFPWindow(id: "fiveHour", title: "5 小时", used: 812, quota: 2000,
+            AFPWindow(id: "fiveHour", title: "近 5 小时", used: 812, quota: 2000,
                       resetTime: now.addingTimeInterval(2.4 * 3600), startTime: now.addingTimeInterval(-2.6 * 3600)),
             AFPWindow(id: "daily", title: "今日", used: 1050, quota: 10000,
                       resetTime: now.addingTimeInterval(5.6 * 3600), startTime: now.addingTimeInterval(-18 * 3600)),
-            AFPWindow(id: "weekly", title: "本周", used: 3120, quota: 7000,
+            AFPWindow(id: "weekly", title: "近一周", used: 3120, quota: 7000,
                       resetTime: now.addingTimeInterval(2.2 * 86400), startTime: now.addingTimeInterval(-4.8 * 86400)),
-            AFPWindow(id: "monthly", title: "本月", used: 9480, quota: 20000,
+            AFPWindow(id: "monthly", title: "近一月", used: 9480, quota: 20000,
                       resetTime: now.addingTimeInterval(18.3 * 86400), startTime: now.addingTimeInterval(-11.7 * 86400))
         ])
         plan = PlanInfo(plan: "AgentPlan", planType: "Small", status: "Running",
