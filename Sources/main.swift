@@ -167,7 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let factor = min(1.5, max(0.8, model.prefs.settingsScale))
         if settingsWC == nil {
             settingsWC = PanelWindowController.make(
-                title: "ArkWatch 设置",
+                title: "设置",
                 view: settingsRoot,
                 size: NSSize(width: 420 * factor, height: 600 * factor))
         }
