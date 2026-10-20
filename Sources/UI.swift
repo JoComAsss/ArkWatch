@@ -107,7 +107,36 @@ struct CapsuleTag: View {
     }
 }
 
-/// 统一样式的设置下拉框：固定 150x22、文字居中、无系统下拉指示器
+/// 统一的设置项方框外观（下拉框与「展开」共用，保证一模一样）
+struct SettingsBoxLabel: View {
+    let text: String
+    var width: CGFloat = 150
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(text)
+                .font(.system(size: 11))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 8))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 8)
+        .frame(width: width, height: 22)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.28), lineWidth: 1))
+    }
+}
+
+/// NSMenu 菜单项回调载体（NSMenuItem.target 是弱引用，需要外部持有）
+final class MenuActionTarget: NSObject {
+    private let handler: () -> Void
+    init(_ handler: @escaping () -> Void) { self.handler = handler }
+    @objc func invoke(_ sender: Any?) { handler() }
+}
+
+/// 统一样式的设置下拉框：与「展开」按钮同一套方框，菜单用 NSMenu 弹出
 struct SettingsSelect<Value: Hashable>: View {
     let options: [(label: String, value: Value)]
     @Binding var selection: Value
@@ -118,34 +147,31 @@ struct SettingsSelect<Value: Hashable>: View {
     }
 
     var body: some View {
-        Menu {
-            ForEach(options.indices, id: \.self) { index in
-                Button(options[index].label) { selection = options[index].value }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Text(currentLabel)
-                    .font(.system(size: 11))
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 8))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 8)
-            .frame(width: width, height: 22)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.secondary.opacity(0.38), lineWidth: 1)
-            )
+        Button(action: presentMenu) {
+            SettingsBoxLabel(text: currentLabel, width: width)
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .frame(width: width, height: 22)
+        .buttonStyle(.plain)
+    }
+
+    private func presentMenu() {
+        let menu = NSMenu()
+        var targets: [MenuActionTarget] = []
+        for option in options {
+            let target = MenuActionTarget { selection = option.value }
+            targets.append(target)
+            let item = NSMenuItem(title: option.label,
+                                  action: #selector(MenuActionTarget.invoke(_:)),
+                                  keyEquivalent: "")
+            item.target = target
+            menu.addItem(item)
+        }
+        if let window = NSApp.keyWindow, let view = window.contentView {
+            let screenPoint = NSEvent.mouseLocation
+            let windowPoint = window.convertPoint(fromScreen: screenPoint)
+            let viewPoint = view.convert(windowPoint, from: nil)
+            menu.popUp(positioning: nil, at: viewPoint, in: view)
+        }
+        _ = targets
     }
 }
 
@@ -531,18 +557,7 @@ struct SettingsView: View {
                 Button {
                     openPlans()
                 } label: {
-                    HStack(spacing: 4) {
-                        Text("展开")
-                            .font(.system(size: 11))
-                            .frame(maxWidth: .infinity)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 8)
-                    .frame(width: 150, height: 22)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.38), lineWidth: 1))
+                    SettingsBoxLabel(text: "展开", width: 150)
                 }
                 .buttonStyle(.plain)
             }
