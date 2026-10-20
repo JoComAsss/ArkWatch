@@ -1,0 +1,9 @@
+# 提交信息格式：
+#   <type>: <摘要>        type = feat / fix / ui / docs / build / chore
+#   空行
+#   正文（可选）：说明动机、影响、验证方式
+#
+# 以下 trailer 请保留在提交信息末尾，用于标记 AI 协助与共同作者，便于追溯
+
+Assisted-by: DeepSeek Harness
+Co-authored-by: DeepSeek <noreply@deepseek.com>
