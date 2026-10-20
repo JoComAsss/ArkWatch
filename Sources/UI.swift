@@ -252,6 +252,21 @@ struct PopoverView: View {
     }
 }
 
+/// 通用「从剪贴板粘贴」按钮
+struct PasteButton: View {
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "doc.on.clipboard")
+                .font(.system(size: 11))
+        }
+        .buttonStyle(.borderless)
+        .help("从剪贴板粘贴")
+        .accessibilityLabel("从剪贴板粘贴")
+    }
+}
+
 // MARK: - 设置视图模型（避免使用 SwiftUI 宏，兼容仅有命令行工具的环境）
 
 final class SettingsModel: ObservableObject {
@@ -272,6 +287,34 @@ final class SettingsModel: ObservableObject {
         verifyMessage = ""
         verifying = false
         showAdd = true
+    }
+
+    private func clipboardText() -> String? {
+        guard let raw = NSPasteboard.general.string(forType: .string) else { return nil }
+        let cleaned = raw
+            .replacingOccurrences(of: "\u{00a0}", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? nil : cleaned
+    }
+
+    /// 粘贴到「账号」：去掉所有空白字符
+    func pasteAccount() {
+        guard let value = clipboardText() else {
+            NSSound.beep()
+            return
+        }
+        newAK = value.components(separatedBy: .whitespacesAndNewlines).joined()
+        verifyMessage = ""
+    }
+
+    /// 粘贴到「密码」：去掉所有空白字符
+    func pasteSecret() {
+        guard let value = clipboardText() else {
+            NSSound.beep()
+            return
+        }
+        newSK = value.components(separatedBy: .whitespacesAndNewlines).joined()
+        verifyMessage = ""
     }
 
     func startEdit(_ account: Account) {
@@ -420,9 +463,12 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("账号").font(.system(size: 10)).foregroundStyle(.secondary)
                 if account == nil {
-                    TextField("Access Key ID，通常以 AKLT 开头", text: $vm.newAK)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 11, design: .monospaced))
+                    HStack(spacing: 6) {
+                        TextField("Access Key ID，通常以 AKLT 开头", text: $vm.newAK)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(size: 11, design: .monospaced))
+                        PasteButton(action: { vm.pasteAccount() })
+                    }
                 } else {
                     Text(account!.ak)
                         .font(.system(size: 11, design: .monospaced))
@@ -435,10 +481,13 @@ struct SettingsView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("密码").font(.system(size: 10)).foregroundStyle(.secondary)
-                SecureField(account == nil ? "Secret Access Key" : "Secret Access Key（留空则不修改）",
-                            text: $vm.newSK)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 11, design: .monospaced))
+                HStack(spacing: 6) {
+                    SecureField(account == nil ? "Secret Access Key" : "Secret Access Key（留空则不修改）",
+                                text: $vm.newSK)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(size: 11, design: .monospaced))
+                    PasteButton(action: { vm.pasteSecret() })
+                }
             }
 
             if !vm.verifyMessage.isEmpty {
