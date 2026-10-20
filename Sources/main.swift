@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
     private var model: AppModel!
     private var settingsWC: PanelWindowController?
+    private var plansWC: PanelWindowController?
     private let settingsVM = SettingsModel()
     private var cancellables: Set<AnyCancellable> = []
 
@@ -31,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                prefs: model.prefs,
                                openSettings: { [weak self] in self?.showSettings() },
                                openAddAccount: { [weak self] in self?.showAddAccount() },
+                               openPlans: { [weak self] in self?.showPlans() },
                                quit: { NSApp.terminate(nil) })
         popover.contentViewController = NSHostingController(rootView: root)
         popover.behavior = .transient
@@ -88,6 +90,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeKey()
+    }
+
+    func showPlans() {
+        popover.performClose(nil)
+        let view = PlansView(model: model, openConsole: { [weak self] in self?.openPlanConsole() })
+        if plansWC == nil {
+            plansWC = PanelWindowController.make(title: "火山方舟套餐", view: view,
+                                                 size: NSSize(width: 500, height: 560))
+        } else {
+            plansWC?.contentViewController = NSHostingController(rootView: view)
+        }
+        plansWC?.showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func openPlanConsole() {
+        NSWorkspace.shared.open(PlanCatalog.consoleURL)
     }
 
     func showSettings() {
@@ -178,7 +197,7 @@ func runRenderAndExit(path: String, demo: Bool) -> Never {
     let model = AppModel()
     if demo { model.loadDemoData() }
     let view = PopoverView(model: model, prefs: model.prefs,
-                           openSettings: {}, openAddAccount: {}, quit: {})
+                           openSettings: {}, openAddAccount: {}, openPlans: {}, quit: {})
     let hosting = NSHostingView(rootView: view)
     hosting.frame = NSRect(x: 0, y: 0, width: 400, height: demo ? 360 : 190)
     hosting.layoutSubtreeIfNeeded()

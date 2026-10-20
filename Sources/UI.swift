@@ -71,6 +71,7 @@ struct PopoverView: View {
     @ObservedObject var prefs: Preferences
     var openSettings: () -> Void
     var openAddAccount: () -> Void
+    var openPlans: () -> Void
     var quit: () -> Void
 
     var planBadge: String {
@@ -131,11 +132,15 @@ struct PopoverView: View {
                 .font(.system(size: 12))
             Text("ArkWatch").font(.system(size: 12, weight: .semibold))
 
-            Text(planBadge)
-                .font(.system(size: 9, weight: .medium))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.accentColor.opacity(0.12), in: Capsule())
+            Button(action: openPlans) {
+                Text(planBadge)
+                    .font(.system(size: 9, weight: .medium))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.accentColor.opacity(0.12), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("查看全部套餐")
 
             Spacer()
 

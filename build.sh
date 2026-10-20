@@ -13,12 +13,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 echo "==> 编译"
 swiftc -swift-version 5 -O \
   -framework AppKit -framework SwiftUI -framework CryptoKit -framework Security \
-  "$ROOT/Sources/Signing.swift" \
-  "$ROOT/Sources/ArkAPI.swift" \
-  "$ROOT/Sources/Store.swift" \
-  "$ROOT/Sources/AppModel.swift" \
-  "$ROOT/Sources/UI.swift" \
-  "$ROOT/Sources/main.swift" \
+  "$ROOT/Sources/"*.swift \
   -o "$BIN"
 
 echo "==> 生成图标"
