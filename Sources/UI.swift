@@ -1,0 +1,489 @@
+import SwiftUI
+import AppKit
+
+// MARK: - 通用小组件
+
+struct ProgressLine: View {
+    let ratio: Double
+    var height: CGFloat = 6
+
+    var color: Color {
+        if ratio >= 0.9 { return .red }
+        if ratio >= 0.7 { return .orange }
+        return .accentColor
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.secondary.opacity(0.18))
+                Capsule()
+                    .fill(color)
+                    .frame(width: max(2, geo.size.width * CGFloat(ratio)))
+            }
+        }
+        .frame(height: height)
+    }
+}
+
+struct WindowRow: View {
+    let window: AFPWindow
+
+    var resetText: String {
+        guard let reset = window.resetTime else { return "" }
+        let interval = reset.timeIntervalSinceNow
+        if interval <= 0 { return "即将重置" }
+        let hours = Int(interval) / 3600
+        let minutes = (Int(interval) % 3600) / 60
+        if hours >= 24 { return "\(hours / 24) 天 \(hours % 24) 小时后重置" }
+        if hours > 0 { return "\(hours) 小时 \(minutes) 分后重置" }
+        return "\(minutes) 分钟后重置"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(window.title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 44, alignment: .leading)
+                Text("\(AppModel.formatAFP(window.used)) / \(AppModel.formatAFP(window.quota)) AFP")
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(window.percentText)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(window.ratio >= 0.9 ? .red : .primary)
+            }
+            ProgressLine(ratio: window.ratio)
+            if !resetText.isEmpty {
+                Text(resetText)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+}
+
+// MARK: - 主面板
+
+struct PopoverView: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject var prefs: Preferences
+    var openSettings: () -> Void
+    var openAddAccount: () -> Void
+    var quit: () -> Void
+
+    var planBadge: String {
+        guard let plan = model.plan else { return "未登录" }
+        return "\(plan.plan == "CodingPlan" ? "Coding" : "Agent") \(plan.planType)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            header
+            Divider()
+
+            if let snapshot = model.snapshot {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(snapshot.windows) { window in
+                        WindowRow(window: window)
+                    }
+                }
+            } else if model.activeAccount == nil {
+                emptyState
+            } else if model.isLoading {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("正在读取用量…").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 12)
+            } else {
+                Text("暂无额度数据").font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+
+            if let error = model.errorMessage {
+                Text(error)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.red)
+                    .lineLimit(4)
+                    .padding(6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+            }
+
+            if !model.usageRows.isEmpty {
+                Divider()
+                usageSection
+            }
+
+            Divider()
+            footer
+        }
+        .padding(12)
+        .frame(width: 400)
+    }
+
+    private var header: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "bolt.fill")
+                .foregroundStyle(Color.accentColor)
+                .font(.system(size: 12))
+            Text("ArkWatch").font(.system(size: 12, weight: .semibold))
+
+            Text(planBadge)
+                .font(.system(size: 9, weight: .medium))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.accentColor.opacity(0.12), in: Capsule())
+
+            Spacer()
+
+            Menu {
+                ForEach(model.accounts) { account in
+                    Button {
+                        model.activeID = account.id
+                    } label: {
+                        if account.id == model.activeID {
+                            Label(account.name, systemImage: "checkmark")
+                        } else {
+                            Text(account.name)
+                        }
+                    }
+                }
+                if !model.accounts.isEmpty { Divider() }
+                Button("添加账号…") { openAddAccount() }
+                Button("管理账号…") { openSettings() }
+            } label: {
+                HStack(spacing: 3) {
+                    Text(model.activeAccount?.name ?? "登录")
+                        .font(.system(size: 11))
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down").font(.system(size: 8))
+                }
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+
+            Button {
+                model.refresh(force: true)
+            } label: {
+                Image(systemName: model.isLoading ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.borderless)
+            .help("立即刷新")
+
+            Button {
+                openSettings()
+            } label: {
+                Image(systemName: "gearshape").font(.system(size: 11))
+            }
+            .buttonStyle(.borderless)
+            .help("设置")
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("尚未添加账号").font(.system(size: 12, weight: .medium))
+            Text("使用火山引擎 Access Key（AK/SK）登录，可在同一台机器上保存多个账号并随时切换。")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("添加账号") { openAddAccount() }
+                .controlSize(.small)
+        }
+        .padding(.vertical, 6)
+    }
+
+    private var usageSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("今日模型用量").font(.system(size: 10, weight: .semibold))
+                Spacer()
+                Text("Token").font(.system(size: 9)).foregroundStyle(.tertiary)
+            }
+            ForEach(model.usageRows.prefix(6)) { row in
+                HStack(spacing: 6) {
+                    Text(row.model)
+                        .font(.system(size: 10, design: .monospaced))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if row.billingType == "OutsideOfPlan" {
+                        Text("超额")
+                            .font(.system(size: 8))
+                            .padding(.horizontal, 4)
+                            .background(Color.orange.opacity(0.15), in: Capsule())
+                    }
+                    Spacer()
+                    Text(AppModel.formatTokens(row.usage))
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: 6) {
+            if let plan = model.plan, let end = plan.endTime {
+                Text("到期 \(String(end.prefix(10)))")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                if plan.autoRenew == true {
+                    Text("自动续费").font(.system(size: 9)).foregroundStyle(.tertiary)
+                }
+            }
+            Spacer()
+            if let updated = model.lastUpdated {
+                Text("更新 \(updated.formatted(date: .omitted, time: .standard))")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+            }
+            Text("· \(prefs.refreshSeconds)s")
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(.tertiary)
+            Button("退出") { quit() }
+                .buttonStyle(.borderless)
+                .font(.system(size: 9))
+                .foregroundStyle(.tertiary)
+        }
+    }
+}
+
+// MARK: - 设置视图模型（避免使用 SwiftUI 宏，兼容仅有命令行工具的环境）
+
+final class SettingsModel: ObservableObject {
+    @Published var showAdd = false
+    @Published var editing: Account?
+    @Published var newName = ""
+    @Published var newAK = ""
+    @Published var newSK = ""
+    @Published var newNote = ""
+    @Published var verifyMessage = ""
+    @Published var verifying = false
+
+    func startAdd() {
+        newName = ""
+        newAK = ""
+        newNote = ""
+        newSK = ""
+        verifyMessage = ""
+        verifying = false
+        showAdd = true
+    }
+
+    func startEdit(_ account: Account) {
+        newName = account.name
+        newNote = account.note
+        newSK = ""
+        verifyMessage = ""
+        editing = account
+    }
+
+    func test(model: AppModel, account: Account?) async {
+        verifying = true
+        let ak = account?.ak ?? newAK
+        var sk = newSK
+        if sk.isEmpty, let account { sk = model.store.secretKey(for: account) ?? "" }
+        let result = await model.verify(ak: ak, sk: sk)
+        await MainActor.run {
+            self.verifyMessage = result
+            self.verifying = false
+        }
+    }
+
+    func save(model: AppModel, account: Account?) {
+        if let account {
+            var updated = account
+            updated.name = newName.isEmpty ? account.name : newName
+            updated.note = newNote
+            model.updateAccount(updated, sk: newSK.isEmpty ? nil : newSK)
+            editing = nil
+        } else {
+            _ = model.addAccount(name: newName, ak: newAK, sk: newSK, note: newNote)
+            showAdd = false
+        }
+    }
+}
+
+// MARK: - 设置 / 账号管理
+
+struct SettingsView: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject var prefs: Preferences
+    @ObservedObject var vm: SettingsModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("账号").font(.system(size: 13, weight: .semibold))
+
+            if model.accounts.isEmpty {
+                Text("还没有账号，点击下方「添加账号」使用 AK/SK 登录。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 6) {
+                    ForEach(model.accounts) { account in
+                        HStack(spacing: 8) {
+                            Image(systemName: account.id == model.activeID ? "largecircle.fill.circle" : "circle")
+                                .foregroundStyle(account.id == model.activeID ? Color.accentColor : Color.secondary)
+                                .onTapGesture { model.activeID = account.id }
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(account.name).font(.system(size: 12))
+                                Text(account.ak).font(.system(size: 9, design: .monospaced))
+                                    .foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer()
+                            Button("编辑") { vm.startEdit(account) }
+                                .buttonStyle(.borderless)
+                                .font(.system(size: 10))
+                            Button("删除") { model.deleteAccount(account) }
+                                .buttonStyle(.borderless)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.red)
+                        }
+                        .padding(8)
+                        .background(Color.secondary.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+            }
+
+            Button {
+                vm.startAdd()
+            } label: {
+                Label("添加账号", systemImage: "plus")
+            }
+            .controlSize(.small)
+
+            Divider()
+
+            Text("通用").font(.system(size: 13, weight: .semibold))
+
+            HStack {
+                Text("刷新间隔").font(.system(size: 11))
+                Spacer()
+                Picker("", selection: $prefs.refreshSeconds) {
+                    Text("30 秒").tag(30)
+                    Text("60 秒").tag(60)
+                    Text("2 分钟").tag(120)
+                    Text("5 分钟").tag(300)
+                }
+                .labelsHidden()
+                .frame(width: 110)
+            }
+
+            HStack {
+                Text("菜单栏显示").font(.system(size: 11))
+                Spacer()
+                Picker("", selection: $prefs.displayMode) {
+                    Text("剩余 %").tag("remainingPercent")
+                    Text("已用 %").tag("usedPercent")
+                    Text("剩余 AFP").tag("remainingAFP")
+                }
+                .labelsHidden()
+                .frame(width: 110)
+            }
+
+            Toggle("开机自动启动", isOn: $prefs.launchAtLogin)
+                .font(.system(size: 11))
+                .toggleStyle(.switch)
+                .controlSize(.small)
+
+            Divider()
+
+            Text("AK/SK 在火山引擎控制台「API 访问密钥」中创建；Secret Key 仅保存在本机钥匙串。")
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .frame(width: 420, alignment: .topLeading)
+        .sheet(isPresented: $vm.showAdd) {
+            accountForm(title: "添加账号", account: nil)
+        }
+        .sheet(item: $vm.editing) { account in
+            accountForm(title: "编辑账号", account: account)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .arkWatchAddAccount)) { _ in
+            vm.startAdd()
+        }
+    }
+
+    private func accountForm(title: String, account: Account?) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.system(size: 13, weight: .semibold))
+
+            TextField("账号名称（如：个人 / 公司）", text: $vm.newName)
+                .textFieldStyle(.roundedBorder)
+
+            if account == nil {
+                TextField("Access Key ID", text: $vm.newAK)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 11, design: .monospaced))
+            } else {
+                Text("AK：\(account!.ak)")
+                    .font(.system(size: 9, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+
+            SecureField(account == nil ? "Secret Access Key" : "Secret Access Key（留空则不修改）",
+                        text: $vm.newSK)
+                .textFieldStyle(.roundedBorder)
+
+            TextField("备注（可选）", text: $vm.newNote)
+                .textFieldStyle(.roundedBorder)
+
+            if !vm.verifyMessage.isEmpty {
+                Text(vm.verifyMessage)
+                    .font(.system(size: 10))
+                    .foregroundStyle(vm.verifyMessage.hasPrefix("连接成功") ? .green : .red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            HStack {
+                Button(vm.verifying ? "测试中…" : "测试连接") {
+                    Task { await vm.test(model: model, account: account) }
+                }
+                .disabled(vm.verifying || (vm.newSK.isEmpty && account == nil))
+                .controlSize(.small)
+
+                Spacer()
+
+                Button("取消") {
+                    vm.showAdd = false
+                    vm.editing = nil
+                }
+                .controlSize(.small)
+
+                Button("保存") {
+                    vm.save(model: model, account: account)
+                }
+                .controlSize(.small)
+                .keyboardShortcut(.defaultAction)
+                .disabled(vm.newSK.isEmpty || (account == nil && vm.newAK.isEmpty))
+            }
+        }
+        .padding(16)
+        .frame(width: 380)
+    }
+}
+
+// MARK: - 独立窗口控制器
+
+final class PanelWindowController: NSWindowController {
+    static func make<Content: View>(title: String, view: Content, size: NSSize) -> PanelWindowController {
+        let hosting = NSHostingController(rootView: view)
+        let window = NSWindow(contentViewController: hosting)
+        window.title = title
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.setContentSize(size)
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.level = .normal
+        return PanelWindowController(window: window)
+    }
+}

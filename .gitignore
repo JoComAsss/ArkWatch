@@ -1,0 +1,11 @@
+# 构建产物
+dist/
+*.app
+*.icns
+
+# macOS
+.DS_Store
+
+# 临时文件
+*.log
+tmp/
