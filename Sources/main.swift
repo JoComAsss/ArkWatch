@@ -62,32 +62,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateStatusItem() {
         guard let button = statusItem.button else { return }
-        let label = model.statusLabel
-        let value = model.statusValue
+        button.attributedTitle = Self.makeStatusTitle(label: model.statusLabel, value: model.statusValue)
+        button.toolTip = tooltip()
+    }
 
+    /// 菜单栏标题：空标签时单行；否则左上角小字说明 + 下方数值
+    static func makeStatusTitle(label: String, value: String) -> NSAttributedString {
         if label.isEmpty {
-            button.attributedTitle = NSAttributedString(string: value, attributes: [
+            return NSAttributedString(string: value, attributes: [
                 .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium),
                 .foregroundColor: NSColor.labelColor
             ])
-        } else {
-            let para = NSMutableParagraphStyle()
-            para.alignment = .left
-            para.minimumLineHeight = 9
-            para.maximumLineHeight = 9
-            let attr = NSMutableAttributedString(string: label, attributes: [
-                .font: NSFont.systemFont(ofSize: 8, weight: .regular),
-                .foregroundColor: NSColor.secondaryLabelColor,
-                .paragraphStyle: para
-            ])
-            attr.append(NSAttributedString(string: "\n" + value, attributes: [
-                .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
-                .foregroundColor: NSColor.labelColor,
-                .paragraphStyle: para
-            ]))
-            button.attributedTitle = attr
         }
-        button.toolTip = tooltip()
+        let para = NSMutableParagraphStyle()
+        para.alignment = .left
+        para.minimumLineHeight = 9
+        para.maximumLineHeight = 9
+        let attr = NSMutableAttributedString(string: label, attributes: [
+            .font: NSFont.systemFont(ofSize: 8, weight: .regular),
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .paragraphStyle: para
+        ])
+        attr.append(NSAttributedString(string: "\n" + value, attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium),
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: para
+        ]))
+        return attr
     }
 
     private func tooltip() -> String {
