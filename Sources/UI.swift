@@ -33,30 +33,28 @@ struct WindowRow: View {
     var resetText: String {
         guard let reset = window.resetTime else { return "" }
         let interval = reset.timeIntervalSinceNow
-        if interval <= 0 { return "即将重置" }
+        if interval <= 0 { return L("即将重置") }
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
-        if hours >= 24 { return "\(hours / 24) 天 \(hours % 24) 小时后重置" }
-        if hours > 0 { return "\(hours) 小时 \(minutes) 分后重置" }
-        return "\(minutes) 分钟后重置"
+        if hours >= 24 { return Lf("%d 天 %d 小时后重置 · %@", hours / 24, hours % 24, "") }
+        if hours > 0 { return Lf("%d 小时 %d 分后重置 · %@", hours, minutes, "") }
+        return Lf("%d 分钟后重置 · %@", minutes, "")
     }
 
     /// 基于绝对重置时间每秒重算，避免使用缓存快照里的旧倒计时
     static func resetDescription(_ reset: Date, now: Date) -> String {
         let interval = reset.timeIntervalSince(now)
-        if interval <= 0 { return "即将重置" }
+        if interval <= 0 { return L("即将重置") }
         let total = Int(interval.rounded(.down))
         let days = total / 86_400
         let hours = (total % 86_400) / 3_600
         let minutes = (total % 3_600) / 60
         let seconds = total % 60
-        var parts: [String] = []
-        if days > 0 { parts.append("\(days) 天") }
-        if hours > 0 || days > 0 { parts.append("\(hours) 小时") }
-        parts.append("\(minutes) 分")
-        parts.append(String(format: "%02d 秒", seconds))
         let clock = reset.formatted(date: .omitted, time: .standard)
-        return parts.joined(separator: " ") + "后重置 · \(clock)"
+        if days > 0 { return Lf("%d 天 %d 小时后重置 · %@", days, hours, clock) }
+        if hours > 0 { return Lf("%d 小时 %d 分后重置 · %@", hours, minutes, clock) }
+        _ = seconds
+        return Lf("%d 分钟后重置 · %@", minutes, clock)
     }
 
     private var barColor: Color {
@@ -74,7 +72,7 @@ struct WindowRow: View {
                     Text(window.title)
                         .font(.system(size: 11, weight: .semibold))
                     Spacer()
-                    Text("已用 \(AppModel.formatAFP(window.used)) / \(AppModel.formatAFP(window.quota)) AFP")
+                    Text(Lf("已用 %@ / %@ AFP", AppModel.formatAFP(window.used), AppModel.formatAFP(window.quota)))
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundStyle(.secondary)
                     Text(String(format: "%.1f%%", window.rawRatio * 100))
@@ -107,7 +105,7 @@ struct WindowRow: View {
             .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
-        .help("打开火山方舟 Agent Plan 订阅页")
+        .help(L("打开火山方舟 Agent Plan 订阅页"))
     }
 }
 
@@ -206,7 +204,7 @@ struct PopoverView: View {
     var quit: () -> Void
 
     var planBadge: String {
-        guard model.activeAccount != nil else { return "未登录" }
+        guard model.activeAccount != nil else { return L("未登录") }
         return model.selectedPlanLabel
     }
 
@@ -224,12 +222,12 @@ struct PopoverView: View {
             } else if model.isLoading {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("正在读取用量…").font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text(L("正在读取用量…")).font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 12)
             } else {
-                Text("暂无额度数据").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(L("暂无额度数据")).font(.system(size: 11)).foregroundStyle(.secondary)
             }
 
             if let error = model.errorMessage {
@@ -262,7 +260,7 @@ struct PopoverView: View {
             Text("ArkWatch").font(.system(size: 12, weight: .semibold))
 
             CapsuleTag(text: planBadge)
-                .help("套餐信息，可在设置中查看全部套餐")
+                .help(L("套餐信息，可在设置中查看全部套餐"))
 
             Spacer()
 
@@ -279,12 +277,12 @@ struct PopoverView: View {
                     }
                 }
                 if !model.accounts.isEmpty { Divider() }
-                Button("添加账号…") { openAddAccount() }
-                Button("管理账号…") { openSettings() }
+                Button(L("添加账号…")) { openAddAccount() }
+                Button(L("管理账号…")) { openSettings() }
                 Divider()
-                Button("关于 ArkWatch") { openAbout() }
+                Button(L("关于 ArkWatch")) { openAbout() }
             } label: {
-                CapsuleTag(text: model.activeAccount?.displayName ?? "登录", color: .secondary)
+                CapsuleTag(text: model.activeAccount?.displayName ?? L("登录"), color: .secondary)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
@@ -297,7 +295,7 @@ struct PopoverView: View {
                     .font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.borderless)
-            .help("立即刷新")
+            .help(L("立即刷新"))
 
             Button {
                 openSettings()
@@ -305,18 +303,18 @@ struct PopoverView: View {
                 Image(systemName: "gearshape").font(.system(size: 12, weight: .medium))
             }
             .buttonStyle(.borderless)
-            .help("设置")
+            .help(L("设置"))
         }
     }
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("尚未添加账号").font(.system(size: 12, weight: .medium))
-            Text("使用火山引擎 API 访问密钥（账号 + 密码）登录，可在同一台机器上保存多个账号并随时切换。")
+            Text(L("尚未添加账号")).font(.system(size: 12, weight: .medium))
+            Text(L("使用火山引擎 API 访问密钥（账号 + 密码）登录，可在同一台机器上保存多个账号并随时切换。"))
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("添加账号") { openAddAccount() }
+            Button(L("添加账号")) { openAddAccount() }
                 .controlSize(.small)
         }
         .padding(.vertical, 6)
@@ -325,9 +323,9 @@ struct PopoverView: View {
     private func quotaSection(_ snapshot: AFPSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
-                Text("燃料值(AFP)用量").font(.system(size: 10, weight: .semibold))
+                Text(L("燃料值(AFP)用量")).font(.system(size: 10, weight: .semibold))
                 Spacer()
-                ForEach([("5 小时", "fiveHour"), ("一周", "weekly"), ("一月", "monthly")], id: \.1) { item in
+                ForEach([(L("5 小时"), "fiveHour"), (L("一周"), "weekly"), (L("一月"), "monthly")], id: \.1) { item in
                     Button(item.0) { prefs.menuBarWindow = item.1 }
                         .buttonStyle(.plain)
                         .font(.system(size: 9, weight: prefs.menuBarWindow == item.1 ? .semibold : .regular))
@@ -357,7 +355,7 @@ struct PopoverView: View {
     private var usageSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("今日模型用量").font(.system(size: 10, weight: .semibold))
+                Text(L("今日模型用量")).font(.system(size: 10, weight: .semibold))
                 Spacer()
                 Text("Token").font(.system(size: 9)).foregroundStyle(.tertiary)
             }
@@ -368,7 +366,7 @@ struct PopoverView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if row.billingType == "OutsideOfPlan" {
-                        Text("超额")
+                        Text(L("超额"))
                             .font(.system(size: 8))
                             .padding(.horizontal, 4)
                             .background(Color.orange.opacity(0.15), in: Capsule())
@@ -385,23 +383,23 @@ struct PopoverView: View {
     private var footer: some View {
         HStack(spacing: 6) {
             if let plan = model.plan, let end = plan.endTime {
-                Text("到期 \(String(end.prefix(10)))")
+                Text(Lf("到期 %@", String(end.prefix(10))))
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                 if plan.autoRenew == true {
-                    Text("自动续费").font(.system(size: 9)).foregroundStyle(.tertiary)
+                    Text(L("自动续费")).font(.system(size: 9)).foregroundStyle(.tertiary)
                 }
             }
             Spacer()
             if let updated = model.lastUpdated {
-                Text("更新 \(updated.formatted(date: .omitted, time: .standard))")
+                Text(Lf("更新 %@", updated.formatted(date: .omitted, time: .standard)))
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.tertiary)
             }
             Text("· \(prefs.refreshSeconds)s")
                 .font(.system(size: 9, design: .monospaced))
                 .foregroundStyle(.tertiary)
-            Button("退出") { quit() }
+            Button(L("退出")) { quit() }
                 .buttonStyle(.borderless)
                 .font(.system(size: 9))
                 .foregroundStyle(.tertiary)
@@ -419,8 +417,8 @@ struct PasteButton: View {
                 .font(.system(size: 11))
         }
         .buttonStyle(.borderless)
-        .help("从剪贴板粘贴")
-        .accessibilityLabel("从剪贴板粘贴")
+        .help(L("从剪贴板粘贴"))
+        .accessibilityLabel(L("从剪贴板粘贴"))
     }
 }
 
@@ -518,10 +516,10 @@ struct SettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("账号").font(.system(size: 13, weight: .semibold))
+            Text(L("账号")).font(.system(size: 13, weight: .semibold))
 
             if model.accounts.isEmpty {
-                Text("还没有账号，点击下方「添加账号」，填入 API 访问密钥的账号与密码即可。")
+                Text(L("还没有账号，点击下方「添加账号」，填入 API 访问密钥的账号与密码即可。"))
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             } else {
@@ -537,10 +535,10 @@ struct SettingsView: View {
                                     .foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer()
-                            Button("编辑") { vm.startEdit(account) }
+                            Button(L("编辑")) { vm.startEdit(account) }
                                 .buttonStyle(.borderless)
                                 .font(.system(size: 10))
-                            Button("删除") { model.deleteAccount(account) }
+                            Button(L("删除")) { model.deleteAccount(account) }
                                 .buttonStyle(.borderless)
                                 .font(.system(size: 10))
                                 .foregroundStyle(.red)
@@ -554,39 +552,39 @@ struct SettingsView: View {
             Button {
                 vm.startAdd()
             } label: {
-                Label("添加账号", systemImage: "plus")
+                Label(L("添加账号"), systemImage: "plus")
             }
             .controlSize(.small)
 
             Divider()
 
             HStack(spacing: 8) {
-                Text("套餐").font(.system(size: 13, weight: .semibold))
+                Text(L("套餐")).font(.system(size: 13, weight: .semibold))
                 if model.activeAccount != nil {
                     if model.isCheckingPlan {
-                        CapsuleTag(text: "检测中", color: Color(red: 0.78, green: 0.60, blue: 0.05))
+                        CapsuleTag(text: L("检测中"), color: Color(red: 0.78, green: 0.60, blue: 0.05))
                     } else if model.isSelectedPlanOpened {
-                        CapsuleTag(text: "已开通 · \(model.selectedPlanLabel)", color: .green)
+                        CapsuleTag(text: Lf("已开通 · %@", model.selectedPlanLabel), color: .green)
                     } else {
-                        CapsuleTag(text: "未开通", color: .red)
+                        CapsuleTag(text: L("未开通"), color: .red)
                     }
                 }
                 Spacer()
             }
 
             HStack(spacing: 8) {
-                Text("查看全部套餐").font(.system(size: 11))
+                Text(L("查看全部套餐")).font(.system(size: 11))
                 Spacer()
                 Button {
                     openPlans()
                 } label: {
-                    SettingsBoxLabel(text: "展开", width: 150)
+                    SettingsBoxLabel(text: L("展开"), width: 150)
                 }
                 .buttonStyle(.plain)
             }
 
             HStack(spacing: 8) {
-                Text("套餐生效时间范围").font(.system(size: 11))
+                Text(L("套餐生效时间范围")).font(.system(size: 11))
                 Spacer()
                 Text(model.planRangeText)
                     .font(.system(size: 10, design: .monospaced))
@@ -595,55 +593,62 @@ struct SettingsView: View {
 
             Divider()
 
-            Text("外观").font(.system(size: 13, weight: .semibold))
+            Text(L("外观")).font(.system(size: 13, weight: .semibold))
 
             HStack {
-                Text("设置栏大小").font(.system(size: 11))
+                Text(L("设置栏大小")).font(.system(size: 11))
                 Spacer()
                 SettingsSelect(options: stride(from: 80, through: 150, by: 5).map { ("\($0)%", $0) },
                                selection: $prefs.settingsScalePercent)
             }
 
             HStack {
-                Text("菜单栏大小").font(.system(size: 11))
+                Text(L("菜单栏大小")).font(.system(size: 11))
                 Spacer()
                 SettingsSelect(options: stride(from: 80, through: 130, by: 5).map { ("\($0)%", $0) },
                                selection: $prefs.menuBarScalePercent)
             }
 
             HStack {
-                Text("整体外观").font(.system(size: 11))
+                Text(L("整体外观")).font(.system(size: 11))
                 Spacer()
-                SettingsSelect(options: [("跟随系统", "system"), ("浅色", "light"), ("深色", "dark")],
+                SettingsSelect(options: [(L("跟随系统"), "system"), (L("浅色"), "light"), (L("深色"), "dark")],
                                selection: $prefs.appearanceMode)
             }
 
             Divider()
 
-            Text("通用").font(.system(size: 13, weight: .semibold))
+            Text(L("通用")).font(.system(size: 13, weight: .semibold))
 
             HStack {
-                Text("刷新间隔").font(.system(size: 11))
+                Text(L("刷新间隔")).font(.system(size: 11))
                 Spacer()
-                SettingsSelect(options: [("30 秒", 30), ("60 秒", 60), ("2 分钟", 120), ("5 分钟", 300)],
+                SettingsSelect(options: [(L("30 秒"), 30), (L("60 秒"), 60), (L("2 分钟"), 120), (L("5 分钟"), 300)],
                                selection: $prefs.refreshSeconds)
             }
 
             HStack {
-                Text("菜单栏显示").font(.system(size: 11))
+                Text(L("菜单栏显示")).font(.system(size: 11))
                 Spacer()
-                SettingsSelect(options: [("剩余 %", "remainingPercent"), ("已用 %", "usedPercent"), ("剩余 AFP", "remainingAFP")],
+                SettingsSelect(options: [(L("剩余 %"), "remainingPercent"), (L("已用 %"), "usedPercent"), (L("剩余 AFP"), "remainingAFP")],
                                selection: $prefs.displayMode)
             }
 
             HStack {
-                Text("菜单栏选项").font(.system(size: 11))
+                Text(L("语言")).font(.system(size: 11))
                 Spacer()
-                SettingsSelect(options: [("余量 + 模型用量", "all"), ("仅余量统计", "quota"), ("仅模型用量", "usage")],
+                SettingsSelect(options: [("简体中文", "zh"), ("English", "en")],
+                               selection: $prefs.language)
+            }
+
+            HStack {
+                Text(L("菜单栏选项")).font(.system(size: 11))
+                Spacer()
+                SettingsSelect(options: [(L("余量 + 模型用量"), "all"), (L("仅余量统计"), "quota"), (L("仅模型用量"), "usage")],
                                selection: $prefs.popoverSections)
             }
 
-            Toggle("开机自动启动", isOn: $prefs.launchAtLogin)
+            Toggle(L("开机自动启动"), isOn: $prefs.launchAtLogin)
                 .font(.system(size: 11))
                 .toggleStyle(.switch)
                 .controlSize(.small)
@@ -651,14 +656,14 @@ struct SettingsView: View {
             Divider()
 
             HStack {
-                Text("版本").font(.system(size: 9)).foregroundStyle(.tertiary)
+                Text(L("版本")).font(.system(size: 9)).foregroundStyle(.tertiary)
                 Text(AppInfo.versionText)
                     .font(.system(size: 9, design: .monospaced))
                     .foregroundStyle(.tertiary)
                 Spacer()
             }
 
-            Text("AK/SK 在火山引擎控制台「API 访问密钥」中创建；Secret Key 仅保存在本机钥匙串。")
+            Text(L("AK/SK 在火山引擎控制台「API 访问密钥」中创建；Secret Key 仅保存在本机钥匙串。"))
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -668,10 +673,10 @@ struct SettingsView: View {
         .padding(16)
         .frame(width: 420, alignment: .topLeading)
         .sheet(isPresented: $vm.showAdd) {
-            accountForm(title: "添加账号", account: nil)
+            accountForm(title: L("添加账号"), account: nil)
         }
         .sheet(item: $vm.editing) { account in
-            accountForm(title: "编辑账号", account: account)
+            accountForm(title: L("编辑账号"), account: account)
         }
         .onReceive(NotificationCenter.default.publisher(for: .arkWatchAddAccount)) { _ in
             vm.startAdd()
@@ -683,10 +688,10 @@ struct SettingsView: View {
             Text(title).font(.system(size: 13, weight: .semibold))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("账号").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(L("账号")).font(.system(size: 10)).foregroundStyle(.secondary)
                 if account == nil {
                     HStack(spacing: 6) {
-                        TextField("Access Key ID，通常以 AKLT 开头", text: $vm.newAK)
+                        TextField(L("Access Key ID，通常以 AKLT 开头"), text: $vm.newAK)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(size: 11, design: .monospaced))
                         PasteButton(action: { vm.pasteAccount() })
@@ -702,9 +707,9 @@ struct SettingsView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("密码").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(L("密码")).font(.system(size: 10)).foregroundStyle(.secondary)
                 HStack(spacing: 6) {
-                    SecureField(account == nil ? "Secret Access Key" : "Secret Access Key（留空则不修改）",
+                    SecureField(account == nil ? "Secret Access Key" : L("Secret Access Key（留空则不修改）"),
                                 text: $vm.newSK)
                         .textFieldStyle(.roundedBorder)
                         .font(.system(size: 11, design: .monospaced))
@@ -715,12 +720,12 @@ struct SettingsView: View {
             if !vm.verifyMessage.isEmpty {
                 Text(vm.verifyMessage)
                     .font(.system(size: 10))
-                    .foregroundStyle(vm.verifyMessage.hasPrefix("连接成功") ? .green : .red)
+                    .foregroundStyle(vm.verifyMessage.hasPrefix(L("连接成功")) ? .green : .red)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack {
-                Button(vm.verifying ? "测试中…" : "测试连接") {
+                Button(vm.verifying ? L("测试中…") : L("测试连接")) {
                     Task { await vm.test(model: model, account: account) }
                 }
                 .disabled(vm.verifying || (vm.newSK.isEmpty && account == nil))
@@ -728,13 +733,13 @@ struct SettingsView: View {
 
                 Spacer()
 
-                Button("取消") {
+                Button(L("取消")) {
                     vm.showAdd = false
                     vm.editing = nil
                 }
                 .controlSize(.small)
 
-                Button("保存") {
+                Button(L("保存")) {
                     vm.save(model: model, account: account)
                 }
                 .controlSize(.small)
@@ -742,7 +747,7 @@ struct SettingsView: View {
                 .disabled(vm.newSK.isEmpty || (account == nil && vm.newAK.isEmpty))
             }
 
-            Text("这两项是火山引擎「访问控制 → API 访问密钥」里的 Access Key ID 与 Secret Access Key，不是控制台登录用的手机号/密码。")
+            Text(L("这两项是火山引擎「访问控制 → API 访问密钥」里的 Access Key ID 与 Secret Access Key，不是控制台登录用的手机号/密码。"))
                 .font(.system(size: 9))
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)

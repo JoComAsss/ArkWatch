@@ -58,6 +58,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { mode in Self.applyAppearance(mode) }
             .store(in: &cancellables)
 
+        model.prefs.$language
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.updateStatusItem()
+                self.settingsWC?.window?.title = L("设置")
+                self.plansWC?.window?.title = L("火山方舟套餐")
+            }
+            .store(in: &cancellables)
+
         Self.applyAppearance(model.prefs.appearanceMode)
         updateStatusItem()
 
@@ -112,12 +122,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func tooltip() -> String {
-        guard let account = model.activeAccount else { return "ArkWatch · 未登录" }
+        guard let account = model.activeAccount else { return L("ArkWatch · 未登录") }
         var text = "ArkWatch · \(account.name)"
         if let snapshot = model.snapshot, let month = snapshot.window("monthly") {
-            text += String(format: "\n本月 %.0f / %.0f AFP", month.used, month.quota)
+            text += "\n" + Lf("本月 %.0f / %.0f AFP", month.used, month.quota)
             if let reset = month.resetTime {
-                text += "\n重置 \(reset.formatted(date: .abbreviated, time: .shortened))"
+                text += "\n" + Lf("重置 %@", reset.formatted(date: .abbreviated, time: .shortened))
             }
         }
         if let plan = model.plan {
@@ -143,7 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showAbout() {
         popover.performClose(nil)
         let credits = NSAttributedString(
-            string: "火山方舟用量菜单栏监控\nhttps://github.com/JoComAsss/ArkWatch",
+            string: L("火山方舟用量菜单栏监控") + "\nhttps://github.com/JoComAsss/ArkWatch",
             attributes: [.font: NSFont.systemFont(ofSize: 10)]
         )
         NSApp.orderFrontStandardAboutPanel(options: [
@@ -158,9 +168,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func showPlans() {
         popover.performClose(nil)
         model.detectPlan()
-        let view = PlansView(model: model, openConsole: { [weak self] in self?.openPlanConsole() })
+        let view = PlansView(model: model, prefs: model.prefs, openConsole: { [weak self] in self?.openPlanConsole() })
         if plansWC == nil {
-            plansWC = PanelWindowController.make(title: "火山方舟套餐", view: view,
+            plansWC = PanelWindowController.make(title: L("火山方舟套餐"), view: view,
                                                  size: NSSize(width: 500, height: 560))
         } else {
             plansWC?.contentViewController = NSHostingController(rootView: view)
@@ -183,7 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let factor = min(1.5, max(0.8, model.prefs.settingsScale))
         if settingsWC == nil {
             settingsWC = PanelWindowController.make(
-                title: "设置",
+                title: L("设置"),
                 view: settingsRoot,
                 size: NSSize(width: 420 * factor, height: 600 * factor))
         }
@@ -276,6 +286,7 @@ if let idx = arguments.firstIndex(of: "--render"), idx + 1 < arguments.count {
 func runRenderAndExit(path: String, demo: Bool) -> Never {
     let app = NSApplication.shared
     app.setActivationPolicy(.prohibited)
+    app.appearance = NSAppearance(named: .aqua)
     let model = AppModel()
     if demo { model.loadDemoData() }
     let view = PopoverView(model: model, prefs: model.prefs,

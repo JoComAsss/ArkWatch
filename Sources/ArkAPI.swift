@@ -52,10 +52,10 @@ enum ArkError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .http(let code, let msg): return "HTTP \(code)：\(msg)"
-        case .api(let code, let msg): return "\(code)：\(msg)"
-        case .noPlan: return "当前账号未查询到生效中的套餐"
-        case .badPayload(let msg): return "响应解析失败：\(msg)"
+        case .http(let code, let msg): return "HTTP \(code): \(msg)"
+        case .api(let code, let msg): return "\(code): \(msg)"
+        case .noPlan: return L("当前账号未查询到生效中的套餐")
+        case .badPayload(let msg): return Lf("响应解析失败：%@", msg)
         }
     }
 }
@@ -90,10 +90,10 @@ final class ArkClient {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            throw ArkError.http(0, "网络请求失败：\(error.localizedDescription)")
+            throw ArkError.http(0, Lf("网络请求失败：%@", error.localizedDescription))
         }
         guard let http = response as? HTTPURLResponse else {
-            throw ArkError.http(0, "无 HTTP 响应")
+            throw ArkError.http(0, L("无 HTTP 响应"))
         }
 
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
@@ -101,14 +101,14 @@ final class ArkClient {
         if let error = (json?["ResponseMetadata"] as? [String: Any])?["Error"] as? [String: Any] {
             let code = error["Code"] as? String ?? "Unknown"
             let message = error["Message"] as? String ?? ""
-            if code.contains("Signature") { throw ArkError.api(code, "\(message)（请检查 AK/SK 是否正确、系统时间是否准确）") }
+            if code.contains("Signature") { throw ArkError.api(code, Lf("%@（请检查 AK/SK 是否正确、系统时间是否准确）", message)) }
             throw ArkError.api(code, message)
         }
         guard (200..<300).contains(http.statusCode) else {
             let text = String(data: data, encoding: .utf8) ?? ""
             throw ArkError.http(http.statusCode, String(text.prefix(200)))
         }
-        guard let json else { throw ArkError.badPayload("非 JSON 响应") }
+        guard let json else { throw ArkError.badPayload(L("非 JSON 响应")) }
         return json
     }
 
@@ -133,11 +133,11 @@ final class ArkClient {
         }
 
         var windows: [AFPWindow] = []
-        if let w = parse("AFPFiveHour", "近 5 小时", "fiveHour") { windows.append(w) }
-        if let w = parse("AFPDaily", "今日", "daily") { windows.append(w) }
-        if let w = parse("AFPWeekly", "近一周", "weekly") { windows.append(w) }
-        if let w = parse("AFPMonthly", "近一月", "monthly") { windows.append(w) }
-        guard !windows.isEmpty else { throw ArkError.badPayload("GetAFPUsage 未返回 AFPF* 字段") }
+        if let w = parse("AFPFiveHour", L("近 5 小时"), "fiveHour") { windows.append(w) }
+        if let w = parse("AFPDaily", L("今日"), "daily") { windows.append(w) }
+        if let w = parse("AFPWeekly", L("近一周"), "weekly") { windows.append(w) }
+        if let w = parse("AFPMonthly", L("近一月"), "monthly") { windows.append(w) }
+        guard !windows.isEmpty else { throw ArkError.badPayload(L("GetAFPUsage 未返回 AFPF* 字段")) }
 
         let planType = (res["PlanType"] as? String)
             ?? ((try? JSONSerialization.jsonObject(with: JSONSerialization.data(withJSONObject: res))) as? [String: Any])?["PlanType"] as? String

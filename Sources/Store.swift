@@ -17,7 +17,7 @@ struct Account: Codable, Identifiable, Equatable {
     }
 
     /// 界面统一显示为「用户」
-    var displayName: String { "用户" }
+    var displayName: String { L("用户") }
 
     /// 切换菜单里的区分名：用户 · 尾号
     var menuName: String {
@@ -186,6 +186,11 @@ final class Preferences: ObservableObject {
         didSet { UserDefaults.standard.set(popoverSections, forKey: "popoverSections") }
     }
 
+    /// 界面语言：zh / en
+    @Published var language: String {
+        didSet { UserDefaults.standard.set(language, forKey: "language") }
+    }
+
     /// system / light / dark
     @Published var appearanceMode: String {
         didSet { UserDefaults.standard.set(appearanceMode, forKey: "appearanceMode") }
@@ -216,6 +221,7 @@ final class Preferences: ObservableObject {
             menuBarScalePercent = legacyMenu >= 0.5 ? min(130, max(80, Int((legacyMenu * 100).rounded()))) : 100
         }
         appearanceMode = defaults.string(forKey: "appearanceMode") ?? "system"
+        language = defaults.string(forKey: "language") ?? "zh"
         let storedWindow = defaults.string(forKey: "menuBarWindow") ?? "monthly"
         let validWindows = ["fiveHour", "weekly", "monthly"]
         menuBarWindow = validWindows.contains(storedWindow) ? storedWindow : "monthly"

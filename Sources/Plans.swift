@@ -48,6 +48,7 @@ enum PlanCatalog {
 
 struct PlansView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject var prefs: Preferences
     var openConsole: () -> Void
 
     private var currentFamily: String {
@@ -63,8 +64,8 @@ struct PlansView: View {
         VStack(alignment: .leading, spacing: 12) {
             header
             Divider()
-            section(title: "Agent Plan", subtitle: "面向 Agent 场景，含模型与 Harness 额度", tiers: PlanCatalog.agentTiers)
-            section(title: "Coding Plan", subtitle: "面向编程工具，按 5 小时 / 周窗口限流", tiers: PlanCatalog.codingTiers)
+            section(title: "Agent Plan", subtitle: L("面向 Agent 场景，含模型与 Harness 额度"), tiers: PlanCatalog.agentTiers)
+            section(title: "Coding Plan", subtitle: L("面向编程工具，按 5 小时 / 周窗口限流"), tiers: PlanCatalog.codingTiers)
             Divider()
             footer
         }
@@ -75,7 +76,7 @@ struct PlansView: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("全部套餐").font(.system(size: 14, weight: .semibold))
+            Text(L("全部套餐")).font(.system(size: 14, weight: .semibold))
             Spacer()
         }
     }
@@ -108,34 +109,34 @@ struct PlansView: View {
                 HStack(spacing: 6) {
                     Text(tier.name).font(.system(size: 12, weight: .semibold))
                     if model.isCheckingPlan {
-                        chip("检测中", color: Color(red: 0.78, green: 0.60, blue: 0.05))
+                        chip(L("检测中"), color: Color(red: 0.78, green: 0.60, blue: 0.05))
                     } else if isLive {
-                        chip("已开通", color: .green)
+                        chip(L("已开通"), color: .green)
                     } else {
-                        chip("未开通", color: .red)
+                        chip(L("未开通"), color: .red)
                     }
-                    if isSelected && !isLive && !model.isCheckingPlan { chip("查看中", color: .accentColor) }
-                    if tier.video { chip("含视频生成", color: .secondary) }
+                    if isSelected && !isLive && !model.isCheckingPlan { chip(L("查看中"), color: .accentColor) }
+                    if tier.video { chip(L("含视频生成"), color: .secondary) }
                 }
-                Text(tier.detail)
+                Text(L(tier.detail))
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            Text(tier.price)
+            Text(L(tier.price))
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundStyle(.secondary)
 
             if !(isLive && isSelected) {
-                Button("切换") {
+                Button(L("切换")) {
                     model.selectedPlanID = tier.id
                 }
                 .controlSize(.small)
             }
 
-            Button("开通") { openConsole() }
+            Button(L("开通")) { openConsole() }
                 .controlSize(.small)
         }
         .padding(.vertical, 8)
@@ -159,17 +160,17 @@ struct PlansView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("点「开通」会在浏览器打开火山方舟控制台的开通管理页，可查看额度、购买或续费。")
+            Text(L("点「开通」会在浏览器打开火山方舟控制台的开通管理页，可查看额度、购买或续费。"))
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("说明：接口只能读取已购买的那一档。「切换」仅切换本机查看对象，不会改变实际订阅；真正变更套餐请在控制台购买或升配。")
+            Text(L("说明：接口只能读取已购买的那一档。「切换」仅切换本机查看对象，不会改变实际订阅；真正变更套餐请在控制台购买或升配。"))
                 .font(.system(size: 9))
                 .foregroundStyle(.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer()
-                Button("打开控制台") { openConsole() }
+                Button(L("打开控制台")) { openConsole() }
                     .controlSize(.small)
             }
         }

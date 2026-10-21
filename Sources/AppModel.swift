@@ -66,6 +66,14 @@ final class AppModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        prefs.$language
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.recomputeTitle()
+            }
+            .store(in: &cancellables)
+
         prefs.$menuBarWindow
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -88,9 +96,9 @@ final class AppModel: ObservableObject {
 
     /// 套餐生效时间范围，未开通返回「无」
     var planRangeText: String {
-        guard isSelectedPlanOpened else { return "无" }
+        guard isSelectedPlanOpened else { return L("无") }
         guard let plan, let start = plan.startTime, let end = plan.endTime,
-              start.count >= 10, end.count >= 10 else { return "无" }
+              start.count >= 10, end.count >= 10 else { return L("无") }
         return "\(String(start.prefix(10))) ~ \(String(end.prefix(10)))"
     }
 
@@ -133,14 +141,14 @@ final class AppModel: ObservableObject {
 
     /// 面板/设置里展示的套餐名
     var selectedPlanLabel: String {
-        guard plan != nil || selectedPlanID != nil else { return "未绑定" }
+        guard plan != nil || selectedPlanID != nil else { return L("未绑定") }
         if let tier = selectedTier {
             return "\(tier.family == "CodingPlan" ? "Coding" : "Agent") \(tier.name)"
         }
         if let plan {
             return "\(plan.plan == "CodingPlan" ? "Coding" : "Agent") \(plan.planType)"
         }
-        return "未绑定"
+        return L("未绑定")
     }
 
     // MARK: 账号管理
@@ -179,11 +187,11 @@ final class AppModel: ObservableObject {
         do {
             let plan = try await client.fetchActivePlan()
             if let plan {
-                return "连接成功 · \(plan.plan) \(plan.planType) · \(plan.status)"
+                return Lf("连接成功 · %@ %@ · %@", plan.plan, plan.planType, plan.status)
             }
-            return "连接成功，但该账号没有生效中的 Agent/Coding Plan 套餐"
+            return L("连接成功，但该账号没有生效中的 Agent/Coding Plan 套餐")
         } catch {
-            return "连接失败：\(error.localizedDescription)"
+            return Lf("连接失败：%@", error.localizedDescription)
         }
     }
 
@@ -193,7 +201,7 @@ final class AppModel: ObservableObject {
         guard !isLoading else { return }
         guard let account = activeAccount else { return }
         guard let sk = store.secretKey(for: account), !sk.isEmpty else {
-            errorMessage = "账号「\(account.name)」缺少 Secret Key，请重新编辑账号"
+            errorMessage = Lf("账号「%@」缺少 Secret Key，请重新编辑账号", account.name)
             recomputeTitle()
             return
         }
@@ -259,9 +267,9 @@ final class AppModel: ObservableObject {
 
     private var displayLabel: String {
         switch prefs.displayMode {
-        case "usedPercent": return "已用"
-        case "remainingAFP": return "剩余 AFP"
-        default: return "剩余"
+        case "usedPercent": return L("已用")
+        case "remainingAFP": return L("剩余 AFP")
+        default: return L("剩余")
         }
     }
 
@@ -279,8 +287,8 @@ final class AppModel: ObservableObject {
             return
         }
         if !isSelectedPlanOpened {
-            statusValue = "无"
-            statusTitle = "Ark 无"
+            statusValue = L("无")
+            statusTitle = L("Ark 无")
             return
         }
 
@@ -330,13 +338,13 @@ final class AppModel: ObservableObject {
     func loadDemoData() {
         let now = Date()
         snapshot = AFPSnapshot(planType: "Small", windows: [
-            AFPWindow(id: "fiveHour", title: "近 5 小时", used: 812, quota: 2000,
+            AFPWindow(id: "fiveHour", title: L("近 5 小时"), used: 812, quota: 2000,
                       resetTime: now.addingTimeInterval(2.4 * 3600), startTime: now.addingTimeInterval(-2.6 * 3600)),
-            AFPWindow(id: "daily", title: "今日", used: 1050, quota: 10000,
+            AFPWindow(id: "daily", title: L("今日"), used: 1050, quota: 10000,
                       resetTime: now.addingTimeInterval(5.6 * 3600), startTime: now.addingTimeInterval(-18 * 3600)),
-            AFPWindow(id: "weekly", title: "近一周", used: 3120, quota: 7000,
+            AFPWindow(id: "weekly", title: L("近一周"), used: 3120, quota: 7000,
                       resetTime: now.addingTimeInterval(2.2 * 86400), startTime: now.addingTimeInterval(-4.8 * 86400)),
-            AFPWindow(id: "monthly", title: "近一月", used: 9480, quota: 20000,
+            AFPWindow(id: "monthly", title: L("近一月"), used: 9480, quota: 20000,
                       resetTime: now.addingTimeInterval(18.3 * 86400), startTime: now.addingTimeInterval(-11.7 * 86400))
         ])
         plan = PlanInfo(plan: "AgentPlan", planType: "Small", status: "Running",
