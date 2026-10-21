@@ -18,14 +18,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        model = AppModel()
-
+        // 先建立状态栏项，避免首次读取钥匙串的系统授权框阻塞启动
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+            button.title = "…"
             button.target = self
             button.action = #selector(togglePopover(_:))
         }
+
+        model = AppModel()
 
         let root = PopoverView(model: model,
                                prefs: model.prefs,
@@ -70,6 +72,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Self.applyAppearance(model.prefs.appearanceMode)
         updateStatusItem()
+        if model.activeAccount != nil {
+            DispatchQueue.main.async { [weak self] in self?.model.refresh(force: true) }
+        }
 
         // 数据量变化会改变面板高度，按 SwiftUI 的理想尺寸重设 popover 大小
         model.objectWillChange

@@ -3,8 +3,11 @@ import Combine
 
 final class AppModel: ObservableObject {
     @Published private(set) var accounts: [Account] = []
+    private var isBootstrapping = true
+
     @Published var activeID: String? {
         didSet {
+            guard !isBootstrapping else { return }
             guard oldValue != activeID else { return }
             UserDefaults.standard.set(activeID, forKey: "activeAccountID")
             // 套餐选择是账号维度的，切号后回到「跟随实际套餐」
@@ -82,9 +85,9 @@ final class AppModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        isBootstrapping = false
         restartTimer()
         recomputeTitle()
-        if activeAccount != nil { refresh(force: true) }
     }
 
     /// 当前查看的套餐是否处于已开通状态
@@ -200,18 +203,22 @@ final class AppModel: ObservableObject {
     func refresh(force: Bool = false) {
         guard !isLoading else { return }
         guard let account = activeAccount else { return }
-        guard let sk = store.secretKey(for: account), !sk.isEmpty else {
-            errorMessage = Lf("账号「%@」缺少 Secret Key，请重新编辑账号", account.name)
-            recomputeTitle()
-            return
-        }
 
         isLoading = true
-        let client = ArkClient(ak: account.ak, sk: sk)
         let accountID = account.id
 
-        Task { [weak self] in
+        Task.detached { [weak self] in
             guard let self else { return }
+            let sk = self.store.secretKey(for: account)
+            guard let sk, !sk.isEmpty else {
+                await MainActor.run {
+                    self.errorMessage = Lf("账号「%@」缺少 Secret Key，请重新编辑账号", account.name)
+                    self.isLoading = false
+                    self.recomputeTitle()
+                }
+                return
+            }
+            let client = ArkClient(ak: account.ak, sk: sk)
             var errors: [String] = []
             var newPlan: PlanInfo?
             var newSnapshot: AFPSnapshot?
