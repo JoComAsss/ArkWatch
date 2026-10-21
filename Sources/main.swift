@@ -75,6 +75,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if model.activeAccount != nil {
             DispatchQueue.main.async { [weak self] in self?.model.refresh(force: true) }
         }
+        if CommandLine.arguments.contains("--open-settings") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.showSettings() }
+        }
 
         // 数据量变化会改变面板高度，按 SwiftUI 的理想尺寸重设 popover 大小
         model.objectWillChange
@@ -204,23 +207,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settingsWC?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let view = self?.settingsWC?.window?.contentView else { return }
-            Self.configureScrollers(in: view)
-        }
     }
 
     /// 只调整窗口尺寸，缩放本身由 SettingsContainer 内联完成
-    /// SwiftUI 的 ScrollView 默认使用自动隐藏的覆盖式滚动条，改为常显样式
-    static func configureScrollers(in view: NSView) {
-        if let scroll = view as? NSScrollView {
-            scroll.scrollerStyle = .legacy
-            scroll.hasVerticalScroller = true
-            scroll.autohidesScrollers = false
-        }
-        for sub in view.subviews { configureScrollers(in: sub) }
-    }
-
     private func resizeSettingsWindow(scale: Double) {
         guard let window = settingsWC?.window else { return }
         let factor = min(1.5, max(0.8, scale))

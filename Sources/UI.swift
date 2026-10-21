@@ -515,7 +515,6 @@ struct SettingsView: View {
     var openPlans: () -> Void
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: true) {
         VStack(alignment: .leading, spacing: 14) {
             Text(L("账号")).font(.system(size: 13, weight: .semibold))
 
@@ -672,10 +671,7 @@ struct SettingsView: View {
             Spacer(minLength: 0)
         }
         .padding(16)
-        .frame(width: 402, alignment: .topLeading)
-        }
-        .scrollIndicators(.visible)
-        .frame(width: 420)
+        .frame(width: 420, alignment: .topLeading)
         .sheet(isPresented: $vm.showAdd) {
             accountForm(title: L("添加账号"), account: nil)
         }
