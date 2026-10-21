@@ -782,7 +782,7 @@ struct SettingsContainer: View {
     var body: some View {
         SettingsView(model: model, prefs: prefs, vm: vm, openPlans: openPlans)
             .scaleEffect(factor, anchor: .topLeading)
-            .frame(width: 420 * factor, height: 600 * factor, alignment: .topLeading)
+            .frame(width: 420 * factor, height: 720 * factor, alignment: .topLeading)
     }
 }
 
