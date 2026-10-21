@@ -152,9 +152,13 @@ ArkWatch/
 │   ├── ArkAPI.swift      # OpenAPI 客户端与数据模型
 │   ├── Store.swift       # 账号仓库、钥匙串、偏好、开机自启
 │   ├── AppModel.swift    # 轮询、状态聚合、菜单栏文案
+│   ├── Plans.swift       # 套餐目录与「全部套餐」窗口
+│   ├── L10n.swift        # 中英文文案映射
 │   └── UI.swift          # SwiftUI 面板与设置界面
 ├── tools/make-icon.swift # 生成 App 图标
-├── build.sh              # 一键构建 .app
+├── build.sh              # 一键构建 .app（Universal）
+├── release.sh            # 打包 zip + SHA256
+├── .gitmessage           # 提交信息模板（含 trailer）
 └── dist/ArkWatch.app     # 产物
 ```
 
