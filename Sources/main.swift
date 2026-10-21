@@ -195,17 +195,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWC = PanelWindowController.make(
                 title: L("设置"),
                 view: settingsRoot,
-                size: NSSize(width: 420 * factor, height: 600 * factor))
+                size: NSSize(width: 420 * factor, height: 720 * factor))
         }
         settingsWC?.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let view = self?.settingsWC?.window?.contentView else { return }
+            Self.configureScrollers(in: view)
+        }
     }
 
     /// 只调整窗口尺寸，缩放本身由 SettingsContainer 内联完成
+    /// SwiftUI 的 ScrollView 默认使用自动隐藏的覆盖式滚动条，改为常显样式
+    static func configureScrollers(in view: NSView) {
+        if let scroll = view as? NSScrollView {
+            scroll.scrollerStyle = .legacy
+            scroll.hasVerticalScroller = true
+            scroll.autohidesScrollers = false
+        }
+        for sub in view.subviews { configureScrollers(in: sub) }
+    }
+
     private func resizeSettingsWindow(scale: Double) {
         guard let window = settingsWC?.window else { return }
         let factor = min(1.5, max(0.8, scale))
-        window.setContentSize(NSSize(width: 420 * factor, height: 600 * factor))
+        window.setContentSize(NSSize(width: 420 * factor, height: 720 * factor))
     }
 
     static func applyAppearance(_ mode: String) {
@@ -279,8 +293,35 @@ if arguments.contains("--help") {
     exit(0)
 }
 
+if let idx = arguments.firstIndex(of: "--render-settings"), idx + 1 < arguments.count {
+    runRenderSettingsAndExit(path: arguments[idx + 1], h: 560)
+}
 if let idx = arguments.firstIndex(of: "--render"), idx + 1 < arguments.count {
     runRenderAndExit(path: arguments[idx + 1], demo: arguments.contains("--demo"))
+}
+
+func runRenderSettingsAndExit(path: String, h: CGFloat) -> Never {
+    let app = NSApplication.shared
+    app.setActivationPolicy(.prohibited)
+    app.appearance = NSAppearance(named: .aqua)
+    let model = AppModel()
+    model.loadDemoData()
+    model.selectedPlanID = nil
+    let view = SettingsView(model: model, prefs: model.prefs, vm: SettingsModel(), openPlans: {})
+    let hosting = NSHostingView(rootView: view)
+    hosting.frame = NSRect(x: 0, y: 0, width: 420, height: h)
+    let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+    window.contentView = hosting
+    window.orderFrontRegardless()
+    RunLoop.main.run(until: Date().addingTimeInterval(1.2))
+    hosting.layoutSubtreeIfNeeded()
+    if let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) {
+        hosting.cacheDisplay(in: hosting.bounds, to: rep)
+        if let png = rep.representation(using: .png, properties: [:]) {
+            try? png.write(to: URL(fileURLWithPath: path)); print("rendered -> \(path)")
+        }
+    }
+    exit(0)
 }
 
 func runRenderAndExit(path: String, demo: Bool) -> Never {
